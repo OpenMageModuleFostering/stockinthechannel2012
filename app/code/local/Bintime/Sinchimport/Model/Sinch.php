@@ -9217,12 +9217,24 @@ STP DELETE*/
 		$retvalue = array();
 		$retvalue["'$check_code'"] = array();
 
-		$data = explode("\n", file_get_contents("/proc/meminfo"));
+		$memInfoContent = file_get_contents("/proc/meminfo");
+		if($memInfoContent === false){
+			return array(
+				'error', 
+				$Caption, 
+				$CheckValue, 
+				0, 
+				$CheckMeasure, 
+				'Cannot read /proc/meminfo for RAM information', 
+				'Make sure open_basedir permits access to /proc/meminfo (or is off) and that this is a *nix system'
+			);
+		}
+		$data = explode("\n", $memInfoContent);
 
-		$meminfo = array();
 		foreach ($data as $line) {
-			list($key, $val) = explode(":", $line);
-			$meminfo[$key] = trim($val);
+			$lineParts = explode(":", $line);
+			if(count($lineParts) < 2) continue;
+			list($key, $val) = $lineParts;
 
 			if ($key == 'MemTotal') { 
 				$val = trim($val);
@@ -9237,19 +9249,22 @@ STP DELETE*/
 		$errmsg = '';
 		$fixmsg = '';
 		if ($retvalue['memory']['value'] <= $CheckValue) {
-			$errmsg .= sprintf($ErrorMessage, $retvalue['memory']['value']); //." ".$retvalue['memory']['value']." ".$retvalue['memory']['measure'];			
-			$fixmsg .= sprintf($FixMessage, " ".$CheckValue." ".$CheckMeasure);
+			$errmsg = sprintf($ErrorMessage, $retvalue['memory']['value']); //." ".$retvalue['memory']['value']." ".$retvalue['memory']['measure'];			
+			$fixmsg = sprintf($FixMessage, " ".$CheckValue." ".$CheckMeasure);
 			$retvalue['memory']['status'] = 'error';
 		} else {
-			$errmsg .= 'none';
-			$fixmsg .= 'none';
 			$retvalue['memory']['status'] = 'OK';
 		}
 
-		$ret = array();
-		array_push($ret, $retvalue['memory']['status'], $Caption, $CheckValue, $retvalue['memory']['value'], $CheckMeasure, $errmsg, $fixmsg);
-
-		return $ret;
+		return array(
+			$retvalue['memory']['status'], 
+			$Caption, 
+			$CheckValue, 
+			$retvalue['memory']['value'], 
+			$CheckMeasure, 
+			$errmsg, 
+			$fixmsg
+		);
 	} // public function getImportEnvironment()
 ##################################################################################################
 
@@ -9465,16 +9480,23 @@ STP DELETE*/
 		$value = trim(PHP_RUN_STRING);
 		$errmsg = '';
 		$fixmsg = '';
+		$status = 'OK';
+		
         if( !defined('PHP_RUN_STRING')){
             $errmsg .= "You haven't installed PHP CLI";			
             $fixmsg .= "Install PHP CLI."; // ." ".$CheckValue." ".$CheckMeasure
             $status = 'error';
         }
 
-		$ret = array();
-		array_push($ret, $status, $Caption, $CheckValue, $value, $CheckMeasure, $errmsg, $fixmsg);
-
-		return $ret;
+		return array(
+			$status, 
+			$Caption, 
+			$CheckValue, 
+			$value, 
+			$CheckMeasure, 
+			$errmsg, 
+			$fixmsg
+		);
 	} // public function getImportEnvironment()
 ##################################################################################################
 
@@ -9725,7 +9747,7 @@ STP DELETE*/
 			$fixmsg .= $FixMessage; // ." ".$CheckValue." ".$CheckMeasure
 			$status = 'error';
 */            
-            $status = 'OK';
+        $status = 'OK';
 
         if (!strstr($config_file, '<image>Bintime_Sinchimport_Helper_Image</image>')) {
             $errmsg .= " Can't find <image>Bintime_Sinchimport_Helper_Image</image> in  <helpers><catalog></catalog></helpers>"; // ." ".$value." ".$CheckMeasure		
@@ -9792,10 +9814,15 @@ STP DELETE*/
             $errmsg = 'none';
             $fixmsg = 'none';
         }
-		$ret = array();
-		array_push($ret, $status, $Caption, $CheckValue, $value, $CheckMeasure, $errmsg, $fixmsg);
-
-		return $ret;
+		return array(
+			$status, 
+			$Caption, 
+			$CheckValue, 
+			'', 
+			$CheckMeasure, 
+			$errmsg, 
+			$fixmsg
+		);
 	} // public function getImportEnvironment()
 ##################################################################################################
 

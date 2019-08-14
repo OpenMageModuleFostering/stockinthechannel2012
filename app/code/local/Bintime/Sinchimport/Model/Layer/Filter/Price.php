@@ -130,29 +130,24 @@ class Bintime_Sinchimport_Model_Layer_Filter_Price extends Mage_Catalog_Model_La
      */
     protected function _getItemsData()
     {
-//        $dataConf = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
-//        $price_breaks=$dataConf['price_breaks'];
         $import=Mage::getModel('sinchimport/sinch');
         $price_breaks=$import->price_breaks_filter;
 
-        if(strstr($price_breaks, ';')){
+        if(strpos($price_breaks, ';') !== false){
             $price_ranges = explode(';', $price_breaks);
-
             foreach ($price_ranges as $price_range) {
                 $price_range_value=trim($price_range);
-                if($price_range && $price_range!=''){
-
-                    $price_range = explode('-', $price_range);
-                    list($minPrice, $maxPrice) = $price_range;
-                    if(((int)$minPrice || $minPrice==0) && ((int)$maxPrice || $maxPrice=='*')){
-                        $count=$this->_getResource()->getCountMinMaxPrice($this, $minPrice, $maxPrice);
-                        if($count){
-                            $data[] = array(
-                                    'label' => $this->_renderItemLabelMinMaxPrice($minPrice, $maxPrice),
-                                    'value' =>$price_range_value,
-                                    'count' => $count,
-                                    );
-                        }
+                if($price_range_value == '' || strpos($price_range_value, "-") === false) continue;
+                $price_range_value = explode('-', $price_range_value);
+                list($minPrice, $maxPrice) = $price_range_value;
+                if(is_numeric($minPrice) && (is_numeric($maxPrice) || $maxPrice=='*')){
+                    $count=$this->_getResource()->getCountMinMaxPrice($this, $minPrice, $maxPrice);
+                    if($count){
+                        $data[] = array(
+                                'label' => $this->_renderItemLabelMinMaxPrice($minPrice, $maxPrice),
+                                'value' =>$price_range_value,
+                                'count' => $count,
+                                );
                     }
                 }
             }

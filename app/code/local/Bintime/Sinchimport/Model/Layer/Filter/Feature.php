@@ -109,128 +109,116 @@ class Bintime_Sinchimport_Model_Layer_Filter_Feature extends Mage_Catalog_Model_
 
         $feature = $this->getAttributeModel();
         $this->_requestVar = 'feature_' . $feature['category_feature_id'];
-        $limitDirection = $feature['limit_direction'];
+        $limitDirection = isset($feature['limit_direction']) ? $feature['limit_direction'] : 0;
 	
         $data = array();
         $options = explode("\n", $feature['restricted_values']);
-	if ($feature['order_val'] == '2') {
-		$options = array_reverse($options);	
-	}
-	
-        if (count($options)) {
-            if ($limitDirection != self::LESS && $limitDirection != self::GREATER) {
-
-                $optionsCount = $this->_getResource()->getCount($this);
-                foreach ($options as $option) {
-                    if ($pos = strpos($option, '::')) {
-                        $value = substr($option, 0, $pos);
-                        $presentation_value = substr($option, $pos + 2);
-                        //var_dump($option, $value, $presentation_value); die('sadf');
-                    }
-                    else {
-                        $value = $presentation_value = $option;
-                    }
-                    if (isset($optionsCount[$value]) && $optionsCount[$value] > 0) {
-            		   $data[] = array(
-                            'label' => $presentation_value,
-                            'value' => $value,
-                            'count' => $optionsCount[$value],
-                        );
-                    }
-                }
-            }
-            else {
-                $oCount = count($options);
-
-                $intervals = array();
-		if ($feature['order_val'] == '2') {
-                    for ($i = 0; $i < $oCount -1; $i++) {
-                    	$intervals[$i]['high'] = $options[$i];
-                   	$intervals[$i]['low'] = $options[$i +1];
-                    }
+		if (count($options) == 0) {
+			Varien_Profiler::stop(__METHOD__);
+			return $data;
 		}
-		else {
-                    for ($i = 0; $i < $oCount -1; $i++) {
-                        $intervals[$i]['low'] = $options[$i];
-                        $intervals[$i]['high'] = $options[$i +1];
-                    } 
+		if (isset($feature['order_val']) && $feature['order_val'] == '2') {
+			$options = array_reverse($options);	
 		}
-                //FIXME: this is ugly
-		if ($feature['order_val'] == '2') {
-                array_push ($intervals, array(
-                        'high' => $options[$oCount -1],
-                    ));
+		if ($limitDirection != self::LESS && $limitDirection != self::GREATER) {
 
-                array_unshift($intervals, array(
-                        'low' => $options[0],
-                ));
-                }
-		else {
-                array_push ($intervals, array(
-                        'low' => $options[$oCount -1],
-                    ));
+			$optionsCount = $this->_getResource()->getCount($this);
+			foreach ($options as $option) {
+				if ($pos = strpos($option, '::')) {
+					$value = substr($option, 0, $pos);
+					$presentation_value = substr($option, $pos + 2);
+				}
+				else {
+					$value = $presentation_value = $option;
+				}
+				if (isset($optionsCount[$value]) && $optionsCount[$value] > 0) {
+				   $data[] = array(
+						'label' => $presentation_value,
+						'value' => $value,
+						'count' => $optionsCount[$value],
+					);
+				}
+			}
+		} else {
+			$oCount = count($options);
+			$intervals = array();
+			if ($feature['order_val'] == '2') {
+				for ($i = 0; $i < $oCount -1; $i++) {
+					$intervals[$i]['high'] = $options[$i];
+					$intervals[$i]['low'] = $options[$i +1];
+				}
+			} else {
+				for ($i = 0; $i < $oCount -1; $i++) {
+					$intervals[$i]['low'] = $options[$i];
+					$intervals[$i]['high'] = $options[$i +1];
+				} 
+			}
+			//FIXME: this is ugly
+			if ($feature['order_val'] == '2') {
+				array_push ($intervals, array(
+					'high' => $options[$oCount -1],
+				));
+				array_unshift($intervals, array(
+					'low' => $options[0],
+				));
+			} else {
+				array_push ($intervals, array(
+					'low' => $options[$oCount -1],
+				));
+				array_unshift($intervals, array(
+					'high' => $options[0],
+				));
+			}
 
-                array_unshift($intervals, array(
-                        'high' => $options[0],
-                ));
+			$this->setData('intervals', $intervals);
 
+			$defaultSign = $feature['default_sign'];
+			for($i = 0; $i < count($intervals); $i++) {
+				if ($feature['order_val'] == '2') {
+					$interval = $intervals[$i];
+					$label = isset($interval['high']) ? $interval['high'] . " $defaultSign" : '>';
+					if ($label == '>' && isset($intervals[$i + 1])) {
+						$pad = strlen($intervals[$i + 1]['high'] . $defaultSign) + 2;
+						$label = str_pad($label, $pad*2, ' ', STR_PAD_LEFT);
+						$label = str_replace(' ', '&nbsp', $label);
+					}
+					$label .= isset($interval['high'], $interval['high']) ? ' - ' : ' ';
+					$label .= isset($interval['low']) ? $interval['low'] . " $defaultSign" : '>';
+					$value = isset($interval['low']) ?  $interval['low'] : '-';
+					$value .= ',';
+					$value .= isset($interval['high']) ?  $interval['high'] : '-';
+					if (isset($interval['high']) AND !isset($interval['low'])) { $value = '-,'.$interval['high'];}
+					if ($this->_getResource()->getIntervalsCountDescending($this, $interval) > 0){
+						$data[] = array(
+							'label' => $label,
+							'value' => $value,
+							'count' => $this->_getResource()->getIntervalsCountDescending($this, $interval),
+						);
+					}
+				} else {
+					$interval = $intervals[$i];
+					$label = isset($interval['low']) ? $interval['low'] . " $defaultSign" : '<';
+					if ($label == '<' && isset($intervals[$i + 1])) {
+						$pad = strlen($intervals[$i + 1]['low'] . $defaultSign) + 2;
+						$label = str_pad($label, $pad*2, ' ', STR_PAD_LEFT);
+						$label = str_replace(' ', '&nbsp', $label);
+					}
+					$label .= isset($interval['low'], $interval['high']) ? ' - ' : ' ';
+					$label .= isset($interval['high']) ? $interval['high'] . " $defaultSign" : '<';
+
+					$value = isset($interval['low']) ?  $interval['low'] : '-';
+					$value .= ',';
+					$value .= isset($interval['high']) ?  $interval['high'] : '-';
+					if ($this->_getResource()->getIntervalsCount($this, $interval) > 0){
+						$data[] = array(
+							'label' => $label,
+							'value' => $value,
+							'count' => $this->_getResource()->getIntervalsCount($this, $interval),
+						);
+					}
+				}
+			}
 		}
-                
-                $this->setData('intervals', $intervals);
-
-                $defaultSign = $feature['default_sign'];
-		for($i = 0; $i < count($intervals); $i++) {
-		    if ($feature['order_val'] == '2') {
-		    	$interval = $intervals[$i];
-                    	$label = isset($interval['high']) ? $interval['high'] . " $defaultSign" : '>';
-		    	if ($label == '>' && isset($intervals[$i + 1])) {
-		    		$pad = strlen($intervals[$i + 1]['high'] . $defaultSign) + 2;
-		    		$label = str_pad($label, $pad*2, ' ', STR_PAD_LEFT);
-				$label = str_replace(' ', '&nbsp', $label);
-		    	}
-                    	$label .= isset($interval['high'], $interval['high']) ? ' - ' : ' ';
-                    	$label .= isset($interval['low']) ? $interval['low'] . " $defaultSign" : '>';
-                    	$value = isset($interval['low']) ?  $interval['low'] : '-';
-                    	$value .= ',';
-                    	$value .= isset($interval['high']) ?  $interval['high'] : '-';
-			if (isset($interval['high']) AND !isset($interval['low'])) { $value = '-,'.$interval['high'];}
-                    	if ($this->_getResource()->getIntervalsCountDescending($this, $interval) > 0){
-                    	$data[] = array(
-                            'label' => $label,
-                            'value' => $value,
-                            'count' => $this->_getResource()->getIntervalsCountDescending($this, $interval),
-                        );
-
-		    	}
-		    }
-		    else {
-			                        $interval = $intervals[$i];
-                        $label = isset($interval['low']) ? $interval['low'] . " $defaultSign" : '<';
-                        if ($label == '<' && isset($intervals[$i + 1])) {
-                                $pad = strlen($intervals[$i + 1]['low'] . $defaultSign) + 2;
-                                $label = str_pad($label, $pad*2, ' ', STR_PAD_LEFT);
-                                $label = str_replace(' ', '&nbsp', $label);
-                        }
-                        $label .= isset($interval['low'], $interval['high']) ? ' - ' : ' ';
-                        $label .= isset($interval['high']) ? $interval['high'] . " $defaultSign" : '<';
-
-                        $value = isset($interval['low']) ?  $interval['low'] : '-';
-                        $value .= ',';
-                        $value .= isset($interval['high']) ?  $interval['high'] : '-';
-                        if ($this->_getResource()->getIntervalsCount($this, $interval) > 0){
-                        $data[] = array(
-                            'label' => $label,
-                            'value' => $value,
-                            'count' => $this->_getResource()->getIntervalsCount($this, $interval),
-                        );
-
-                        }
-
-		    }
-                }
-                
-            }
-        }
 
         Varien_Profiler::stop(__METHOD__);
         return $data;

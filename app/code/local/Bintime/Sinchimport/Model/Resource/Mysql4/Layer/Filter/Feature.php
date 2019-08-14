@@ -3,11 +3,11 @@
 class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mage_Core_Model_Mysql4_Abstract
 {
     protected $resultTable = 'SinchFilterResult';
-
+    
     protected static $lastResultTable = false;
 
     protected $filterAplied = false;
-
+    
     /**
      * Initialize connection and define main table name
      *
@@ -25,6 +25,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
                     $id = (int)$id;
                     return $tablePrefix . $this->resultTable . "_$id";
                 break;
+            
             case 'search':
                     return $tablePrefix . $this->searchTable;
                 break;
@@ -46,7 +47,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
     {
         Varien_Profiler::start(__METHOD__);
         $catId = $filter->getLayer()->getCurrentCategory()->getId();
-        $connection = $this->_getReadAdapter();
+        $connection = $this->_getWriteAdapter();
 
         $cfid = 0;
         if (!is_null($value)) {
@@ -56,7 +57,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         $resultTable = $this->_getTableName('result', $cfid);
         //TODO: this table must be temporary
         $sql = "
-        CREATE  TABLE IF NOT EXISTS `{$resultTable}`(
+        CREATE TABLE IF NOT EXISTS `{$resultTable}`(
 	    `entity_id` int(10) unsigned,
             `category_id` int(10) unsigned,
             `product_id` int,
@@ -71,7 +72,6 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         );
             ";
         $connection->exec($sql);
-       
         $sql = "TRUNCATE TABLE {$resultTable}";
         $connection->exec($sql);
 
@@ -80,22 +80,20 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         $connection->exec($sql);
 
         $feature = $filter->getAttributeModel();
-        if ($feature['limit_direction'] != 1 && $feature['limit_direction'] != 2) {
+        if (!isset($feature['limit_direction']) || ($feature['limit_direction'] != 1 && $feature['limit_direction'] != 2)) {
             if (!is_null($value)) {
                 $sql = "INSERT INTO `$featuresTable` (category_feature_id, feature_value) VALUES (?)";
                 $sql = $connection->quoteInto($sql, array($cfid, $value));
                 $connection->exec($sql);
             }
             $params = 'null, null';
-        }
-        else {
+        } else {
             $bounds = explode(',', $value);
 
             $params = $bounds[0] != '-' ? (int)$bounds[0] : 'null';
             $params .= ', ';
             $params .= $bounds[1] != '-' ? (int)$bounds[1] : 'null';
         }
-        //$connection->query("CALL `filter_icecat_products_s`($cfid, $catId,0,$cfid, $params)"));
         $tablePrefix = (string)Mage::app()->getConfig()->getTablePrefix();
         $result = $connection->raw_query("CALL ".$this->_getTableName('filter_sinch_products_s')."($cfid, $catId,0, $cfid, $params, '$tablePrefix')");
         Varien_Profiler::stop(__METHOD__);

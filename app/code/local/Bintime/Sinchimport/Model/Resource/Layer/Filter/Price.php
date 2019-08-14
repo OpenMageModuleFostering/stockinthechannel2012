@@ -56,8 +56,7 @@ class  Bintime_Sinchimport_Model_Resource_Layer_Filter_Price extends Mage_Catalo
                     'count' => $countExpr
                     ));
 
-        $count=$connection->fetchPairs($select);
-        return key($count);
+        return $connection->fetchOne($select);
     }
     
     protected function _getSelect($filter)
