@@ -1,7 +1,23 @@
-DROP PROCEDURE IF EXISTS `filter_sinch_products_s`;
-delimiter =/=
+<?php
+$installer = $this;
 
-CREATE PROCEDURE `filter_sinch_products_s`(
+$config = $installer->getConnection()->getConfig();
+$cnx = mysql_connect($config['host'], $config['username'], $config['password']);
+if (!$cnx) {
+    throw new Exception('Failed to connect to database.');
+}
+
+if (!mysql_select_db($config['dbname'])) {
+    throw new Exception('Failed to select a database.');
+}
+
+$installer->startSetup();
+
+// create a new procedure
+$installer->run("DROP PROCEDURE IF EXISTS ".$installer->getTable('filter_sinch_products_s'));
+
+$query = "
+CREATE PROCEDURE " . $installer->getTable('filter_sinch_products_s') . "(
     IN arg_table INT,
     IN arg_category_id INT,
     IN arg_image INT,
@@ -68,6 +84,7 @@ BEGIN
             INNER JOIN ', arg_table_prefix, 'stINch_categories_mapping scm
               ON (scm.shop_store_category_id = scf.store_category_id)
             WHERE
+              scm.shop_entity_id = ', arg_category_id, '
               scm.shop_entity_id = ', arg_category_id, '
               AND PR.main_image_url <> \'\'
             GROUP BY e.entity_id, scf.category_feature_id, scf.feature_name, srv.text
@@ -158,12 +175,12 @@ BEGIN
         ');
     ELSE
         IF (arg_least IS NOT null AND arg_greatest IS NOT null) THEN
-            SET @where = CONCAT('TR.feature_value >= ', arg_least, ' AND TR.feature_value <', arg_greatest, ' ');
+            SET @where = CONCAT(' AND TR.feature_value >= ', arg_least, ' AND TR.feature_value <', arg_greatest, ' ');
         ELSE
             IF arg_least IS null THEN
-                SET @where = CONCAT('TR.feature_value < ', arg_greatest, ' ');
+                SET @where = CONCAT(' AND TR.feature_value < ', arg_greatest, ' ');
             ELSE
-                SET @where = CONCAT('TR.feature_value >= ', arg_least, ' ');
+                SET @where = CONCAT(' AND TR.feature_value >= ', arg_least, ' ');
             END IF;
         END IF;
 
@@ -205,6 +222,13 @@ BEGIN
     PREPARE myquery FROM @query;
     EXECUTE myquery;
     DROP PREPARE myquery;
-END=/=
+END
+";
 
-delimiter ;
+if (!mysql_query($query, $cnx)) {
+    throw new Exception("Failed to create stored procedure".$query);
+}
+
+mysql_close($cnx);
+
+$installer->endSetup();

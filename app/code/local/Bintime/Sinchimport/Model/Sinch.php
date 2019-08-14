@@ -265,14 +265,8 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
                 //$import->AddPriceRules();
                 //$import->ApplyCustomerGroupPrice();
 
-                if (file_exists($this->varDir . FILE_PRICE_RULES)) {
-                    $ftpCred = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
-                    Mage::dispatchEvent('sinch_pricerules_import_ftp', array(
-                        'ftp_host' => $ftpCred["ftp_server"],
-                        'ftp_username' => $ftpCred["login"],
-                        'ftp_password' => $ftpCred["password"]
-                    ));
-                }
+                $ftpCred = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
+                Mage::dispatchEvent('sinch_import_after', array('ftp_cred' => $ftpCred));
 
                 Mage::log("Finish Sinch import", null, $this->_logFile);
                 echo "Finish Sinch import\n";
@@ -306,6 +300,9 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
 
                 $q = "SELECT RELEASE_LOCK('sinchimport')";
                 $this->db_do($q);
+
+                $ftpCred = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
+                Mage::dispatchEvent('sinch_import_after', array('ftp_cred' => $ftpCred));
             } catch (Exception $e) {
                 $this->set_import_error_reporting_message($e);
             }
@@ -5713,6 +5710,12 @@ STP DELETE*/
             $link_type[$row['code']] = $row['link_type_id'];
         }
 
+        // delete old data
+        $this->db_do("SET FOREIGN_KEY_CHECKS=0");
+        $this->db_do("TRUNCATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_link'));
+        $this->db_do("TRUNCATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_link_attribute_int'));
+        $this->db_do("SET FOREIGN_KEY_CHECKS=1");
+
         $result = $this->db_do("
                                 INSERT INTO " . Mage::getSingleton('core/resource')->getTableName('catalog_product_link') . " (
                                     product_id,
@@ -7746,6 +7749,9 @@ STP DELETE*/
         $this->db_do("UPDATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar') . "
                       SET value = ''
                       WHERE entity_type_id=" . $this->_getProductEntityTypeId() . " AND attribute_id=" . $this->_getProductAttributeId('url_key'));
+
+        Mage::dispatchEvent('sinch_import_url_rewrite_before');
+
         exec(PHP_RUN_STRING . ' ' . $this->shellDir . 'indexer.php reindexall');
     }
 
@@ -7890,14 +7896,6 @@ STP DELETE*/
                 //$import->AddPriceRules();
                 //$import->ApplyCustomerGroupPrice();
 
-                $ftpCred = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
-                Mage::dispatchEvent('sinch_pricerules_import_ftp', array(
-                    'ftp_host' => $ftpCred["ftp_server"],
-                    'ftp_username' => $ftpCred["login"],
-                    'ftp_password' => $ftpCred["password"]
-                ));
-
-
                 Mage::log("Finish Stock & Price Sinch import", null, $this->_logFile);
                 echo "Finish Stock & Price Sinch import\n";
 
@@ -7912,6 +7910,9 @@ STP DELETE*/
 
                 $q = "SELECT RELEASE_LOCK('sinchimport')";
                 $this->db_do($q);
+
+                $ftpCred = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
+                Mage::dispatchEvent('sinch_import_after', array('ftp_cred' => $ftpCred));
             } catch (Exception $e) {
                 $this->set_import_error_reporting_message($e);
             }

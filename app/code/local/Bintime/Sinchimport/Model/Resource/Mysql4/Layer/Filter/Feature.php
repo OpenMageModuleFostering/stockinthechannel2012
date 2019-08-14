@@ -86,17 +86,8 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         $truncateSql = "TRUNCATE TABLE {$resultTable}";
         $connection->exec($truncateSql);
 
-        $featuresTable = $this->_getTableName('FilterListOfFeatures');
-        $sql = "TRUNCATE TABLE `$featuresTable`";
-        $connection->exec($sql);
-
         $feature = $filter->getAttributeModel();
         if (!isset($feature['limit_direction']) || ($feature['limit_direction'] != 1 && $feature['limit_direction'] != 2)) {
-            if (!is_null($value)) {
-                $sql = "INSERT INTO `$featuresTable` (category_feature_id, feature_value) VALUES (?)";
-                $sql = $connection->quoteInto($sql, array($cfid, $value));
-                $connection->exec($sql);
-            }
             $params = 'null, null';
         } else {
             $bounds = explode(',', $value);
@@ -106,7 +97,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
             $params .= $bounds[1] != '-' ? (int)$bounds[1] : 'null';
         }
         $tablePrefix = (string)Mage::app()->getConfig()->getTablePrefix();
-        $result = $connection->raw_query("CALL ".$this->_getTableName('filter_sinch_products_s')."($cfid, $catId,0, $cfid, $params, '$tablePrefix')");
+        $result = $connection->raw_query("CALL ".$this->_getTableName('filter_sinch_products_s')."($cfid, $catId,0, $cfid, $params ,'$tablePrefix')");
         Varien_Profiler::stop(__METHOD__);
         return $resultTable;
     }
@@ -125,13 +116,15 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         $searchTable = $this->_prepareSearch($filter, $value);
         self::$lastResultTable = $searchTable;
 
-        $collection = $filter->getLayer()->getProductCollection();
         $feature  = $filter->getAttributeModel();
-        $connection = $this->_getReadAdapter();
+        $featureId = $feature['feature_id'];
+        $featureName = $feature['feature_name'];
+
+        $collection = $filter->getLayer()->getProductCollection();
 
         $collection->getSelect()->join(
             $searchTable,
-            "{$searchTable}.entity_id = e.entity_id AND {$searchTable}.feature_value = '$value'",
+            "{$searchTable}.entity_id = e.entity_id AND {$searchTable}.feature_value = '$value' AND {$searchTable}.feature_name = '{$featureName}'",
             array()
         );
 
