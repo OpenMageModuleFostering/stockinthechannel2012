@@ -322,9 +322,19 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract {
                 $import->addImportStatus('Parse Stock And Prices');
                 
                 echo "Apply Customer Group Price <br>";
-                $import->ParsePriceRules();
-                $import->AddPriceRules();
-                $import->ApplyCustomerGroupPrice();
+                //$import->ParsePriceRules();
+                //$import->AddPriceRules();
+                //$import->ApplyCustomerGroupPrice();
+
+                if(file_exists($this->varDir.FILE_PRICE_RULES)){
+                        $ftpCred = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
+                        Mage::dispatchEvent('sinch_pricerules_import_ftp', array(
+                                'ftp_host' => $ftpCred["ftp_server"],
+                                'ftp_username' => $ftpCred["login"],
+                                'ftp_password' => $ftpCred["password"]
+                        ));
+                }
+
 
                 Mage::log("Finish Sinch import", null, $this->_logFile);
                 echo "Finish Sinch import<br>";
@@ -426,9 +436,17 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract {
                 $import->addImportStatus('Stock Price Parse Products');
 
                 echo "Apply Customer Group Price <br>";
-                $import->ParsePriceRules();
-                $import->AddPriceRules();
-                $import->ApplyCustomerGroupPrice();
+                //$import->ParsePriceRules();
+                //$import->AddPriceRules();
+                //$import->ApplyCustomerGroupPrice();
+
+                $ftpCred = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
+                Mage::dispatchEvent('sinch_pricerules_import_ftp', array(
+                         'ftp_host' => $ftpCred["ftp_server"],
+                         'ftp_username' => $ftpCred["login"],
+                         'ftp_password' => $ftpCred["password"]
+                ));
+
 
                 Mage::log("Finish Stock & Price Sinch import", null, $this->_logFile);
                 echo "Finish Stock & Price Sinch import<br>";
@@ -2638,6 +2656,7 @@ echo("\n     replaceMagentoProductsMultistoreMERGE 3\n");
 			LEFT JOIN $stINch_products_mapping pm 
 				ON a.store_product_id = pm.store_product_id
 				AND a.sinch_product_id = pm.sinch_product_id
+            WHERE pm.entity_id IS NOT NULL
 			)
 			ON DUPLICATE KEY UPDATE
 				sku = a.product_sku,
@@ -2645,6 +2664,33 @@ echo("\n     replaceMagentoProductsMultistoreMERGE 3\n");
 				sinch_product_id = a.sinch_product_id");
 				// store_product_id = a.store_product_id,
 				// sinch_product_id = a.sinch_product_id
+
+		$result = $this->db_do("
+			INSERT INTO $catalog_product_entity 
+				(entity_id,	entity_type_id, attribute_set_id, type_id, sku, updated_at, has_options, store_product_id, sinch_product_id)
+			(SELECT
+				pm.entity_id,	
+				$_getProductEntityTypeId,
+				$_defaultAttributeSetId,
+				'simple',
+				a.product_sku,
+				NOW(),
+				0,
+				a.store_product_id,
+				a.sinch_product_id
+			FROM $products_temp a
+			LEFT JOIN $stINch_products_mapping pm 
+				ON a.store_product_id = pm.store_product_id
+				AND a.sinch_product_id = pm.sinch_product_id
+            WHERE pm.entity_id IS NULL
+			)
+			ON DUPLICATE KEY UPDATE
+				sku = a.product_sku,
+				store_product_id = a.store_product_id,
+				sinch_product_id = a.sinch_product_id");
+				// store_product_id = a.store_product_id,
+				// sinch_product_id = a.sinch_product_id
+
 
 echo("\n     replaceMagentoProductsMultistoreMERGE 4\n");
 
@@ -3029,12 +3075,14 @@ echo("\n     replaceMagentoProductsMultistoreMERGE 20\n");
 
 		$this->dropHTMLentities($this->_getProductEntityTypeId(), $this->_getProductAttributeId('name'));
 		$this->addDescriptions();
+        $this->cleanProductDistributors();
         if($this->product_file_format == "NEW"){
             $this->addReviews();
             $this->addWeight();
             $this->addSearchCache();
             $this->addPdfUrl();
             $this->addShortDescriptions();
+            $this->addProductDistributors();
         }
 		$this->addEAN();
 		$this->addSpecification();
@@ -3569,6 +3617,33 @@ echo("\n     replaceMagentoProductsMultistore 3\n");
 			LEFT JOIN $stINch_products_mapping pm 
 				ON a.store_product_id = pm.store_product_id
 				AND a.sinch_product_id = pm.sinch_product_id
+            WHERE pm.entity_id IS NULL
+			)
+			ON DUPLICATE KEY UPDATE
+				sku = a.product_sku,
+				store_product_id = a.store_product_id,
+				sinch_product_id = a.sinch_product_id");
+				// store_product_id = a.store_product_id,
+				// sinch_product_id = a.sinch_product_id
+
+		$result = $this->db_do("
+			INSERT INTO $catalog_product_entity 
+				(entity_id,	entity_type_id, attribute_set_id, type_id, sku, updated_at, has_options, store_product_id, sinch_product_id)
+			(SELECT
+				pm.entity_id,	
+				$_getProductEntityTypeId,
+				$_defaultAttributeSetId,
+				'simple',
+				a.product_sku,
+				NOW(),
+				0,
+				a.store_product_id,
+				a.sinch_product_id
+			FROM $products_temp a
+			LEFT JOIN $stINch_products_mapping pm 
+				ON a.store_product_id = pm.store_product_id
+				AND a.sinch_product_id = pm.sinch_product_id
+            WHERE pm.entity_id IS NOT NULL
 			)
 			ON DUPLICATE KEY UPDATE
 				sku = a.product_sku,
@@ -3929,12 +4004,14 @@ echo("\n     replaceMagentoProductsMultistore 20\n");
 
 		$this->dropHTMLentities($this->_getProductEntityTypeId(), $this->_getProductAttributeId('name'));
 		$this->addDescriptions();
+        $this->cleanProductDistributors();
         if($this->product_file_format == "NEW"){
             $this->addReviews();
             $this->addWeight();
             $this->addSearchCache();
             $this->addPdfUrl();
             $this->addShortDescriptions();
+            $this->addProductDistributors();
         }
 		$this->addEAN();
 		$this->addSpecification();
@@ -5703,14 +5780,19 @@ echo("\nParseProducts 7\n");
                               SET number_of_products=".$row['cnt']." 
                               WHERE id=".$this->current_import_status_statistic_id); 
             }
+
+if ($replace_merge_product == "REWRITE"){
+    $this->db_do ("DELETE FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity'));
+    $this->db_do ("SET FOREIGN_KEY_CHECKS=0");
+    $this->db_do ("TRUNCATE ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity'));
+    $this->db_do ("SET FOREIGN_KEY_CHECKS=1");
+}
+
 echo("\nParseProducts 8\n");
             $this->addProductsWebsite();
             $this->mapSinchProducts();
 echo("\nParseProducts 9\n");
 
-if ($replace_merge_product == "REWRITE"){
-    $this->db_do ("TRUNCATE ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity'));
-}
 		if (count($coincidence) == 1)
 		{
 	            $this->replaceMagentoProducts();
@@ -6224,6 +6306,42 @@ echo("\nParseProducts 11\n");
                                   LEFT JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_products_mapping')." pm 
                                      ON a.store_product_id=pm.store_product_id
                                      AND a.sinch_product_id=pm.sinch_product_id
+                                  WHERE pm.entity_id IS NOT NULL
+                                )
+                                ON DUPLICATE KEY UPDATE
+                                    sku= a.product_sku,
+                                    store_product_id=a.store_product_id,
+                                    sinch_product_id=a.sinch_product_id
+                              ");
+        //                            store_product_id=a.store_product_id,
+        //                            sinch_product_id=a.sinch_product_id
+
+        $result = $this->db_do("
+                                INSERT INTO ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity')." (
+                                    entity_id,	
+                                    entity_type_id,
+                                    attribute_set_id,
+                                    type_id,
+                                    sku,
+                                    updated_at,
+                                    has_options,
+                                    store_product_id,
+                                    sinch_product_id
+                                )(SELECT
+                                     pm.entity_id,	
+                                     " . $this->_getProductEntityTypeId(). ",
+                                     $this->defaultAttributeSetId,
+                                     'simple',
+                                     a.product_sku,
+                                     NOW(),
+                                     0,
+                                     a.store_product_id,
+                                     a.sinch_product_id
+                                  FROM ".Mage::getSingleton('core/resource')->getTableName('products_temp')." a
+                                  LEFT JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_products_mapping')." pm 
+                                     ON a.store_product_id=pm.store_product_id
+                                     AND a.sinch_product_id=pm.sinch_product_id
+                                  WHERE pm.entity_id IS NULL
                                 )
                                 ON DUPLICATE KEY UPDATE
                                     sku= a.product_sku,
@@ -6521,12 +6639,14 @@ echo("\ndone\n");
 
         $this->dropHTMLentities($this->_getProductEntityTypeId(), $this->_getProductAttributeId('name'));
         $this->addDescriptions();
+        $this->cleanProductDistributors();
         if($this->product_file_format == "NEW"){
             $this->addReviews();
             $this->addWeight();
             $this->addSearchCache();
             $this->addPdfUrl();
             $this->addShortDescriptions();
+            $this->addProductDistributors();
         }
         $this->addEAN();
         $this->addSpecification();
@@ -7156,6 +7276,85 @@ STP DELETE*/
                               ");
 
     }
+
+#################################################################################################
+    function cleanProductDistributors(){
+        for($i=1; $i<=5; $i++){
+            $this->db_do("UPDATE ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar')." 
+                    SET value = ''
+                    WHERE entity_type_id=".$this->_getProductEntityTypeId()." AND attribute_id=".$this->_getProductAttributeId('supplier_'.$i));
+        }
+    }
+#################################################################################################
+    function addProductDistributors(){
+        $this->db_do("DROP TABLE IF EXISTS ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary'));
+        $this->db_do("CREATE TABLE IF NOT EXISTS ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary')." 
+                      LIKE ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price'));
+        $this->db_do("INSERT INTO ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary')." SELECT * FROM ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price'));
+        for($i=1; $i<=5; $i++){
+            $this->db_do("DROP TABLE IF EXISTS ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary_supplier'));
+            $this->db_do("CREATE TABLE IF NOT EXISTS ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary_supplier')." 
+                      LIKE ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price'));
+            $this->db_do("INSERT INTO ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary_supplier')." SELECT * FROM ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary')." GROUP BY store_product_id");
+
+            // product Distributors for all web sites    
+            $result = $this->db_do("
+                                INSERT INTO ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar')." (
+                                    entity_type_id,
+                                    attribute_id,
+                                    store_id,
+                                    entity_id,
+                                    value
+                                )(
+                                  SELECT
+                                    " . $this->_getProductEntityTypeId(). ",
+                                    " . $this->_getProductAttributeId('supplier_'.$i). ",
+                                    w.website,
+                                    a.entity_id,
+                                    d.distributor_name 
+                                  FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity')." a
+                                  INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary_supplier')." b
+                                    ON a.store_product_id = b.store_product_id
+                                  INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors')." d
+                                    ON b.distributor_id = d.distributor_id
+                                  INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('products_website_temp')." w 
+                                    ON a.store_product_id=w.store_product_id
+                                )
+                                ON DUPLICATE KEY UPDATE
+                                    value = d.distributor_name
+                              ");
+            // product Distributors for all web sites
+            $result = $this->db_do("
+                                INSERT INTO ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar')." (
+                                    entity_type_id,
+                                    attribute_id,
+                                    store_id,
+                                    entity_id,
+                                    value
+                                )(
+                                  SELECT
+                                    " . $this->_getProductEntityTypeId(). ",
+                                    " . $this->_getProductAttributeId('supplier_'.$i). ",
+                                    0,
+                                    a.entity_id,
+                                    d.distributor_name 
+                                  FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity')." a
+                                  INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary_supplier')." b
+                                    ON a.store_product_id = b.store_product_id
+                                  INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors')." d
+                                    ON b.distributor_id = d.distributor_id
+                                )
+                                ON DUPLICATE KEY UPDATE
+                                    value = d.distributor_name
+                              ");
+
+            $this->db_do("DELETE sdsapt FROM ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary')." sdsapt JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary_supplier')." sdsapts ON sdsapt.store_product_id = sdsapts.store_product_id AND sdsapt.distributor_id = sdsapts.distributor_id");
+
+
+        }
+
+    }
+
 
 
 #################################################################################################
@@ -8395,6 +8594,13 @@ STP DELETE*/
     }
 #################################################################################################
     public function runIndexer(){
+        $this->db_do("DELETE FROM ".Mage::getSingleton('core/resource')->getTableName('core_url_rewrite'));
+        $this->db_do ("SET FOREIGN_KEY_CHECKS=0");
+        $this->db_do("TRUNCATE TABLE ".Mage::getSingleton('core/resource')->getTableName('core_url_rewrite'));
+        $this->db_do ("SET FOREIGN_KEY_CHECKS=1");
+        $this->db_do("UPDATE ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar')." 
+                      SET value = ''
+                      WHERE entity_type_id=".$this->_getProductEntityTypeId()." AND attribute_id=".$this->_getProductAttributeId('url_key'));
         exec(PHP_RUN_STRING.' '.$this->shellDir.'indexer.php reindexall');
     }
 #################################################################################################
