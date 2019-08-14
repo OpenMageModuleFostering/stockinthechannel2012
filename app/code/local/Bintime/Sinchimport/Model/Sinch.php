@@ -5489,7 +5489,7 @@ echo("\n     replaceMagentoProductsMultistore 41\n");
                      )(
                        SELECT 
                         max(option_id) as option_id, 
-                        "."'".mysqli_real_escape_string($row['manufacturer_name'])."' 
+                        "."'".mysqli_real_escape_string($this->db, $row['manufacturer_name'])."' 
                        FROM ".Mage::getSingleton('core/resource')->getTableName('eav_attribute_option')." 
                        WHERE attribute_id=".$this->attributes['manufacturer']."
                      )
@@ -8584,20 +8584,17 @@ STP DELETE*/
 #################################################################################################
 
     private function db_connect() {
-
         //	$connection = Mage::getModel('core/resource')->getConnection('core_write');
         $dbConf = Mage::getConfig()->getResourceConnectionConfig('core_setup');
-
-        if ($this->db = mysqli_connect($dbConf->host, $dbConf->username, $dbConf->password)) {
-            mysqli_options($this->db, MYSQLI_OPT_LOCAL_INFILE, true);
-            if(mysqli_select_db($this->db, $dbConf->dbname)){ 
-                $this->_LOG("Connected..");
-            }else{ 
+		$dbConn = mysqli_init();
+		mysqli_options($dbConn, MYSQLI_OPT_LOCAL_INFILE, true);
+        if (mysqli_real_connect($dbConn, $dbConf->host, $dbConf->username, $dbConf->password)) {
+            $this->db = $dbConn;
+            if(!mysqli_select_db($this->db, $dbConf->dbname)){ 
                 die("Can't select the database: " . mysqli_error($this->db)); 
             }
         }else{ 
             die("Could not connect: " . mysqli_error($this->db)); 
-
         }
 
     }		
@@ -8613,7 +8610,6 @@ STP DELETE*/
         } else {
             return $result;
         }
-
         return $result;
     }
 ##################################################################################################
@@ -8679,7 +8675,7 @@ STP DELETE*/
             $value=$this->valid_char($row['value']);
             if($value!='' and $value!=$row['value']){
                 $this->db_do("UPDATE ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar')." 
-                              SET value='".mysqli_real_escape_string($value)."' 
+                              SET value='".mysqli_real_escape_string($this->db, $value)."' 
                               WHERE entity_id=".$row['entity_id']." 
                               AND entity_type_id=".$entity_type_id." 
                               AND attribute_id=".$attribute_id);
@@ -8946,7 +8942,7 @@ STP DELETE*/
 #################################################################################################
     function set_import_error_reporting_message($message){
         $this->db_do("UPDATE ".$this->import_status_statistic_table." 
-                      SET error_report_message='".mysqli_real_escape_string($message)."' 
+                      SET error_report_message='".mysqli_real_escape_string($this->db, $message)."' 
                       WHERE id=".$this->current_import_status_statistic_id);
     } 
 #################################################################################################
