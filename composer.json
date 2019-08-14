@@ -1,0 +1,16 @@
+{
+    "name": "OpenMageModuleFostering/stockinthechannel2012",
+    "type": "magento-module",
+    "license": "OSL-v3.0",
+    "homepage": "",
+    "description": "Stock In The Channel to Magento Connector - Sell virtual stock - drop ship ecommerce",
+    "authors": [
+    {
+        "name": "stockinchannel",
+        "email": "marketing@stockinthechannel.com"
+    }
+],
+    "suggest": {
+        "magento-hackathon/magento-composer-installer": "*"
+    }
+}
