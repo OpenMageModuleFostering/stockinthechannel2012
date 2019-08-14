@@ -251,7 +251,7 @@
      <crontab>
          <jobs>
              <fullsinchimport>
-                 <schedule><cron_expr>0 22 * * 6</cron_expr></schedule>
+                 <schedule><cron_expr>25 16 * * *</cron_expr></schedule>
                  <run><model>sinchimport/sinch::cron_start_full_import</model></run>
 	
              </fullsinchimport>

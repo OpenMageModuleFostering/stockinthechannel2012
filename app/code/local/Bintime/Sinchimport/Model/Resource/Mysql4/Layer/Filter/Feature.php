@@ -3,11 +3,11 @@
 class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mage_Core_Model_Mysql4_Abstract
 {
     protected $resultTable = 'SinchFilterResult';
-    
+
     protected static $lastResultTable = false;
 
     protected $filterAplied = false;
-    
+
     /**
      * Initialize connection and define main table name
      *
@@ -25,7 +25,6 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
                     $id = (int)$id;
                     return $tablePrefix . $this->resultTable . "_$id";
                 break;
-            
             case 'search':
                     return $tablePrefix . $this->searchTable;
                 break;
@@ -319,7 +318,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         //
         
         //Создание таблиц с фичами используемыми в навигации.
-        $i = 0; $storeId = Mage::app()->getStore()->getId(); $websiteId = Mage::app()->getWebsite()->getId();
+        $i = 0; $storeId = Mage::app()->getStore()->getId(); $websiteId = Mage::app()->getStore(true)->getWebsite()->getId();
         foreach ($featureIds as $featureId) {
             $tFeature = $resource->getTableName("stINch_products_feature_$featureId");
 	    $query = "DROP TABLE IF EXISTS $tFeature";
