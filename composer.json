@@ -1,13 +1,13 @@
 {
     "name": "OpenMageModuleFostering/stockinthechannel2012",
     "type": "magento-module",
-    "license": "OSL-v3.0",
+    "license": "GNU-GPL-v3",
     "homepage": "",
-    "description": "Stock In The Channel to Magento Connector - Sell virtual stock - drop ship ecommerce",
+    "description": "Import Plugin for the Stock in the Channel Magento Data Feed",
     "authors": [
     {
         "name": "stockinchannel",
-        "email": "marketing@stockinthechannel.com"
+        "email": "support@stockinthechannel.com"
     }
 ],
     "suggest": {

@@ -97,7 +97,8 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
             $params .= $bounds[1] != '-' ? (int)$bounds[1] : 'null';
         }
         //$connection->query("CALL `filter_icecat_products_s`($cfid, $catId,0,$cfid, $params)"));
-        $result = $connection->raw_query("CALL ".$this->_getTableName('filter_sinch_products_s')."($cfid, $catId,0, $cfid, $params)");
+        $tablePrefix = (string)Mage::app()->getConfig()->getTablePrefix();
+        $result = $connection->raw_query("CALL ".$this->_getTableName('filter_sinch_products_s')."($cfid, $catId,0, $cfid, $params, '$tablePrefix')");
         Varien_Profiler::stop(__METHOD__);
         return $resultTable;
     }

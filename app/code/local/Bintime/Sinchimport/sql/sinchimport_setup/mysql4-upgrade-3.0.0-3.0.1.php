@@ -1,13 +1,92 @@
-DROP PROCEDURE IF EXISTS `filter_sinch_products_s`;
-delimiter =/=
+<?php
+$installer = $this;
 
-CREATE PROCEDURE `filter_sinch_products_s`(
+//прямое подключение к базе необходимо для добавления хранимки
+    $config = $installer->getConnection()->getConfig();
+    $cnx = mysql_connect($config['host'], $config['username'], $config['password']);
+    if (!$cnx) {
+        throw new Exception('Failed to connect to database.');
+    }
+
+    if (!mysql_select_db($config['dbname'])) {
+        throw new Exception('Failed to select a database.');
+    }
+
+$installer->startSetup();
+
+
+$attr_text=array(
+            'reviews' => 'Reviews' 
+        );
+
+foreach($attr_text as $key=>$value){
+
+    $installer->addAttribute('catalog_product', $key,array(
+                'label'             => $value,
+                'type'              => 'text',
+                'input'             => 'textarea',
+                'backend'           => 'eav/entity_attribute_backend_array',
+                'frontend'          => '',
+                'source'            => '',
+                'global'            => Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_GLOBAL,
+                'visible'           => true,
+                'required'          => false,
+                'user_defined'      => false,
+                'searchable'        => false,
+                'filterable'        => false,
+                'comparable'        => false,
+                'visible_on_front'  => true,
+                'is_visible_on_front' => 1,
+                'is_html_allowed_on_front' => 1,
+                'visible_in_advanced_search' => false,
+                'unique'            => false
+                ));
+
+    $data=array(
+                    'is_visible_on_front'   => 1,
+                    'is_html_allowed_on_front' => 1
+               );
+    $entityTypeId = $installer->getEntityTypeId('catalog_product');
+    if ($id = $installer->getAttribute($entityTypeId, $key, 'attribute_id')) {
+            $installer->updateAttribute($entityTypeId, $id, $data);
+    }
+
+}
+
+
+
+$installer->run("
+        INSERT ".$installer->getTable('stINch_sinchcheck')."(
+            caption, 
+            descr, 
+            check_code, 
+            check_value, 
+            check_measure, 
+            error_msg, fix_msg
+                                                            )
+        VALUE(
+            'Conflicts with installed plug-ins', 
+            'checking conflicts with installed plug-ins and showing how to fix it', 
+            'conflictwithinstalledmodules',
+            'Conflicts with installed plug-ins :', 
+            '',
+            'Some of installed plug-ins rewrite Sinchimport module config', 
+            'You can uninstall them or make inactive in [shop dir]/app/etc/modules '
+            );
+        ");
+
+
+$installer->run("DROP PROCEDURE IF EXISTS ".$installer->getTable('filter_sinch_products_s'));
+
+$query = "
+CREATE PROCEDURE ".$installer->getTable('filter_sinch_products_s')."(
                                             IN arg_table INT,
                                             IN arg_category_id INT,
                                             IN arg_image INT,
                                             IN arg_category_feature INT,
                                             IN arg_least INT,
-                                            IN arg_greatest INT
+                                            IN arg_greatest INT,
+                                            IN arg_table_prefix VARCHAR(255)
                                            )
 BEGIN
     DROP TABLE IF EXISTS `tmp_result`;
@@ -28,6 +107,8 @@ BEGIN
 
 
     IF arg_image = 1 THEN
+    SET @updquery = CONCAT('
+
         INSERT INTO `tmp_result` (
             entity_id, 
             category_id, 
@@ -53,25 +134,26 @@ BEGIN
             CF.category_feature_id, 
             CF.`feature_name`, 
             RV.`text`
-          FROM catalog_product_entity E
-          INNER JOIN catalog_category_product_index PCind
+          FROM ', arg_table_prefix, 'catalog_product_entity E
+          INNER JOIN ', arg_table_prefix, 'catalog_category_product_index PCind
             ON (E.entity_id = PCind.product_id)
-          INNER JOIN stINch_categories_mapping scm 
+          INNER JOIN ', arg_table_prefix, 'stINch_categories_mapping scm 
             ON PCind.category_id=scm.shop_entity_id
-          INNER JOIN stINch_categories_features CF
+          INNER JOIN ',arg_table_prefix, 'stINch_categories_features CF
             ON (scm.store_category_id=CF.store_category_id)
-          INNER JOIN stINch_products PR
+          INNER JOIN ',arg_table_prefix, 'stINch_products PR
             ON (PR.store_product_id = E.store_product_id)
-          INNER JOIN stINch_product_features PF
+          INNER JOIN ',arg_table_prefix, 'stINch_product_features PF
             ON (PR.sinch_product_id = PF.sinch_product_id )
-          INNER JOIN stINch_restricted_values RV
+          INNER JOIN ',arg_table_prefix, 'stINch_restricted_values RV
             ON (PF.restricted_value_id=RV.restricted_value_id)
           WHERE
-            scm.shop_entity_id = arg_category_id
-            AND PR.main_image_url <> ''
-        );
-
+            scm.shop_entity_id = ', arg_category_id, '
+            AND PR.main_image_url <> \'\'
+        )
+    ');
     ELSE
+    SET @updquery = CONCAT('
 
         INSERT INTO `tmp_result` (
             entity_id, 
@@ -98,29 +180,39 @@ BEGIN
             CF.category_feature_id, 
             CF.`feature_name`, 
             RV.`text`
-          FROM catalog_product_entity E
-          INNER JOIN catalog_category_product_index PCind
+          FROM ', arg_table_prefix ,'catalog_product_entity E
+          INNER JOIN ', arg_table_prefix, 'catalog_category_product_index PCind
             ON (E.entity_id = PCind.product_id)
-          INNER JOIN stINch_categories_mapping scm 
+          INNER JOIN ', arg_table_prefix, 'stINch_categories_mapping scm 
             ON PCind.category_id=scm.shop_entity_id
-          INNER JOIN stINch_categories_features CF
+          INNER JOIN ', arg_table_prefix, 'stINch_categories_features CF
             ON (scm.store_category_id=CF.store_category_id)
-          INNER JOIN stINch_products PR
+          INNER JOIN ', arg_table_prefix, 'stINch_products PR
             ON (PR.store_product_id = E.store_product_id)
-          INNER JOIN stINch_product_features PF
+          INNER JOIN ', arg_table_prefix, 'stINch_product_features PF
             ON (PR.sinch_product_id = PF.sinch_product_id )
-          INNER JOIN stINch_restricted_values RV
+          INNER JOIN ', arg_table_prefix, 'stINch_restricted_values RV
             ON (PF.restricted_value_id=RV.restricted_value_id)
           WHERE
-            scm.shop_entity_id = arg_category_id
+            scm.shop_entity_id = ', arg_category_id, '
  
-        );
-
+        )
+    ');
     END IF;
 
-    IF (SELECT COUNT(*) FROM FilterListOfFeatures) > 0 THEN
+    PREPARE myquery FROM @updquery;
+    EXECUTE myquery;
+    DROP PREPARE myquery; 
+    
+    SET @filter_features_count = 0;
+    SET @ifquery = CONCAT('SELECT COUNT(*) INTO @filter_features_count FROM `', arg_table_prefix, 'FilterListOfFeatures`');
+    PREPARE myquery FROM @ifquery;
+    EXECUTE myquery;
+    DROP PREPARE myquery;
+
+    IF (@filter_features_count) > 0 THEN
         SET @query = CONCAT('
-                             INSERT INTO `SinchFilterResult_', arg_table, '` (
+                             INSERT INTO `', arg_table_prefix, 'SinchFilterResult_', arg_table, '` (
                                 entity_id, 
                                 category_id, 
                                 product_id, 
@@ -146,7 +238,7 @@ BEGIN
                                 TR.feature_name, 
                                 TR.feature_value
                                FROM `tmp_result` AS TR
-                               INNER JOIN `FilterListOfFeatures` AS LF 
+                               INNER JOIN `', arg_table_prefix, 'FilterListOfFeatures` AS LF 
                                 ON (TR.category_feature_id = LF.category_feature_id)
                                WHERE TR.feature_value LIKE LF.feature_value GROUP BY entity_id
                              )
@@ -164,7 +256,7 @@ BEGIN
         END IF;
 
         SET @query = CONCAT('
-                             INSERT INTO `SinchFilterResult_', arg_table, '` (
+                             INSERT INTO `', arg_table_prefix, 'SinchFilterResult_', arg_table, '` (
                                 entity_id, 
                                 category_id, 
                                 product_id, 
@@ -202,6 +294,14 @@ BEGIN
     EXECUTE myquery;
     DROP PREPARE myquery;
 
-END=/=
+END
+";
 
-delimiter ;
+if (!mysql_query($query, $cnx)) {
+    throw new Exception("Failed to create stored procedure".$query);
+}
+
+
+mysql_close($cnx);
+
+$installer->endSetup();

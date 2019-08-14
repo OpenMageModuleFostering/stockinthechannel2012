@@ -104,6 +104,20 @@ class Bintime_Sinchimport_Block_Importenvironment extends Mage_Adminhtml_Block_S
 				";
 		};
 
+
+		// Conflict with installed module 
+		list($status, $caption, $critical, $value, $measure, $errmsg, $fixmsg) = Mage::getModel('sinchimport/sinch')->checkConflictsWithInstalledModules();
+		if ($status == 'error') $errors_count++;
+		if ($status == 'error') { 
+			$html .= // $caption: $value $measure
+				"
+					<tr>  <td nowrap rowspan=4> $caption </td> </tr>
+					<tr>  <td nowrap> {$this->_colored('Necessary:', 'blue')} $critical $measure  </td>  </tr>
+					<tr>  <td nowrap> {$this->_colored('Notice:', 'blue')} $errmsg             </td>  </tr>
+					<tr>  <td nowrap> {$this->_colored('Fix:', 'blue')} $fixmsg             </td>  </tr>
+				";
+		};
+
 		
 		// PHP run string
 		list($status, $caption, $critical, $value, $measure, $errmsg, $fixmsg) = Mage::getModel('sinchimport/sinch')->checkPhprunstring();

@@ -13,7 +13,6 @@ $installer->run("
         shop_store_product_id int(11),
         shop_sinch_product_id int(11),
         sku varchar(64) default NULL,
-        store_category_product_id int(11),
         store_product_id int(11),
         sinch_product_id int(11),
         product_sku varchar(255),
@@ -31,7 +30,6 @@ $installer->run("
 
 $installer->run("
     CREATE TABLE IF NOT EXISTS ".$installer->getTable('stINch_products')."(
-        store_category_product_id int(11),
         store_product_id int(11),
         sinch_product_id int(11),
         product_sku varchar(255),
@@ -56,7 +54,6 @@ $installer->run("
         products_viewed int(5) default '0',
         products_seo_url varchar(100) NOT NULL,
         manufacturer_name varchar(255) default NULL,
-        KEY(store_category_product_id),
         KEY(store_product_id),
         KEY(sinch_manufacturer_id),
         KEY(store_category_id)

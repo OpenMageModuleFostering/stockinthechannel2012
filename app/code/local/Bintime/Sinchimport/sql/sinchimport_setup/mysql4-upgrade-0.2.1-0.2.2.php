@@ -1,7 +1,23 @@
-DROP PROCEDURE IF EXISTS `filter_sinch_products_s`;
-delimiter =/=
+<?php
 
-CREATE PROCEDURE `filter_sinch_products_s`(
+$installer = $this;
+
+//прямое подключение к базе необходимо для добавления хранимки
+    $config = $installer->getConnection()->getConfig();
+    $cnx = mysql_connect($config['host'], $config['username'], $config['password']);
+    if (!$cnx) {
+        throw new Exception('Failed to connect to database.');
+    }
+
+    if (!mysql_select_db($config['dbname'])) {
+        throw new Exception('Failed to select a database.');
+    }
+
+$installer->startSetup();
+$installer->run("DROP PROCEDURE IF EXISTS ".$installer->getTable('filter_sinch_products_s'));
+
+$query = "
+CREATE PROCEDURE ".$installer->getTable('filter_sinch_products_s')."(
                                             IN arg_table INT,
                                             IN arg_category_id INT,
                                             IN arg_image INT,
@@ -53,18 +69,18 @@ BEGIN
             CF.category_feature_id, 
             CF.`feature_name`, 
             RV.`text`
-          FROM catalog_product_entity E
-          INNER JOIN catalog_category_product_index PCind
+          FROM ".$installer->getTable('catalog_product_entity')." E
+          INNER JOIN ".$installer->getTable('catalog_category_product_index')." PCind
             ON (E.entity_id = PCind.product_id)
-          INNER JOIN stINch_categories_mapping scm 
+          INNER JOIN ".$installer->getTable('stINch_categories_mapping')." scm 
             ON PCind.category_id=scm.shop_entity_id
-          INNER JOIN stINch_categories_features CF
+          INNER JOIN ".$installer->getTable('stINch_categories_features')." CF
             ON (scm.store_category_id=CF.store_category_id)
-          INNER JOIN stINch_products PR
+          INNER JOIN ".$installer->getTable('stINch_products')." PR
             ON (PR.store_product_id = E.store_product_id)
-          INNER JOIN stINch_product_features PF
+          INNER JOIN ".$installer->getTable('stINch_product_features')." PF
             ON (PR.sinch_product_id = PF.sinch_product_id )
-          INNER JOIN stINch_restricted_values RV
+          INNER JOIN ".$installer->getTable('stINch_restricted_values')." RV
             ON (PF.restricted_value_id=RV.restricted_value_id)
           WHERE
             scm.shop_entity_id = arg_category_id
@@ -98,18 +114,18 @@ BEGIN
             CF.category_feature_id, 
             CF.`feature_name`, 
             RV.`text`
-          FROM catalog_product_entity E
-          INNER JOIN catalog_category_product_index PCind
+          FROM ".$installer->getTable('catalog_product_entity')." E
+          INNER JOIN ".$installer->getTable('catalog_category_product_index')." PCind
             ON (E.entity_id = PCind.product_id)
-          INNER JOIN stINch_categories_mapping scm 
+          INNER JOIN ".$installer->getTable('stINch_categories_mapping')." scm 
             ON PCind.category_id=scm.shop_entity_id
-          INNER JOIN stINch_categories_features CF
+          INNER JOIN ".$installer->getTable('stINch_categories_features')." CF
             ON (scm.store_category_id=CF.store_category_id)
-          INNER JOIN stINch_products PR
+          INNER JOIN ".$installer->getTable('stINch_products')." PR
             ON (PR.store_product_id = E.store_product_id)
-          INNER JOIN stINch_product_features PF
+          INNER JOIN ".$installer->getTable('stINch_product_features')." PF
             ON (PR.sinch_product_id = PF.sinch_product_id )
-          INNER JOIN stINch_restricted_values RV
+          INNER JOIN ".$installer->getTable('stINch_restricted_values')." RV
             ON (PF.restricted_value_id=RV.restricted_value_id)
           WHERE
             scm.shop_entity_id = arg_category_id
@@ -118,9 +134,9 @@ BEGIN
 
     END IF;
 
-    IF (SELECT COUNT(*) FROM FilterListOfFeatures) > 0 THEN
+    IF (SELECT COUNT(*) FROM `".$installer->getTable('FilterListOfFeatures')."`) > 0 THEN
         SET @query = CONCAT('
-                             INSERT INTO `SinchFilterResult_', arg_table, '` (
+                             INSERT INTO `".$installer->getTable('SinchFilterResult_')."', arg_table, '` (
                                 entity_id, 
                                 category_id, 
                                 product_id, 
@@ -146,7 +162,7 @@ BEGIN
                                 TR.feature_name, 
                                 TR.feature_value
                                FROM `tmp_result` AS TR
-                               INNER JOIN `FilterListOfFeatures` AS LF 
+                               INNER JOIN `".$installer->getTable('FilterListOfFeatures')."` AS LF 
                                 ON (TR.category_feature_id = LF.category_feature_id)
                                WHERE TR.feature_value LIKE LF.feature_value GROUP BY entity_id
                              )
@@ -164,7 +180,7 @@ BEGIN
         END IF;
 
         SET @query = CONCAT('
-                             INSERT INTO `SinchFilterResult_', arg_table, '` (
+                             INSERT INTO `".$installer->getTable('SinchFilterResult_')."', arg_table, '` (
                                 entity_id, 
                                 category_id, 
                                 product_id, 
@@ -202,6 +218,13 @@ BEGIN
     EXECUTE myquery;
     DROP PREPARE myquery;
 
-END=/=
+END
+";
 
-delimiter ;
+if (!mysql_query($query, $cnx)) {
+    throw new Exception("Failed to create stored procedure");
+}
+
+mysql_close($cnx);
+
+$installer->endSetup();

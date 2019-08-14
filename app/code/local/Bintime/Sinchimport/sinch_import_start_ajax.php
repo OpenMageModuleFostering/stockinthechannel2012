@@ -6,7 +6,6 @@
 
     $import=Mage::getModel('sinchimport/sinch');
 
-
     $import->run_sinch_import();
 
     $import->addImportStatus('Finish import', 1);
