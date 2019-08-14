@@ -19,6 +19,7 @@ class Bintime_Sinchimport_Model_System_Config_ServerList
 			'ftpit.stockinthechannel.com' => 'Italy - ftpit.stockinthechannel.com',
 			'ftpnl.stockinthechannel.com' => 'Holland - ftpnl.stockinthechannel.com',
 			'ftpde.stockinthechannel.com' => 'Germany - ftpde.stockinthechannel.com',
+			'ftpdemo.stockinthechannel.com' => 'Demo - ftpdemo.stockinthechannel.com',
 		);
 		return $paramsArray;
 	}
