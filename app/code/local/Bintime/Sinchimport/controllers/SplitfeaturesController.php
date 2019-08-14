@@ -13,4 +13,3 @@ class Bintime_Sinchimport_SplitfeaturesController extends Mage_Adminhtml_Control
         }
 	
 }
-?>

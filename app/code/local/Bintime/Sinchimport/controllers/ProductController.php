@@ -41,4 +41,3 @@ class Bintime_Sinchimport_ProductController extends Mage_Catalog_ProductControll
 		}
 	} 
 }
-?>

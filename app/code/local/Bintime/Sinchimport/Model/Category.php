@@ -17,4 +17,3 @@ class Bintime_Sinchimport_Model_Category extends Mage_Catalog_Model_Category {
 
 
 }
-?>

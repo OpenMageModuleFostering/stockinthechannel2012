@@ -23,4 +23,3 @@ class Bintime_Sinchimport_Model_System_Config_ServerList
 		return $paramsArray;
 	}
 }
-?>

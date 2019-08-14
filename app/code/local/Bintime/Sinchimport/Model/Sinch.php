@@ -9930,10 +9930,3 @@ STP DELETE*/
     }
    
 } // class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
-
-?>
-
-
-
-
-

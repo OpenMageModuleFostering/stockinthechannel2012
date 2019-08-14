@@ -51,5 +51,3 @@
   }elseif( exec("which php5") ){
       define('PHP_RUN_STRING', 'php5 ');
   }
-
-?>

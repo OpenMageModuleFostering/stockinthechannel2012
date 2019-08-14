@@ -77,4 +77,3 @@ class  Bintime_Sinchimport_Model_Resource_Layer_Filter_Price extends Mage_Catalo
     }
 
 }
-?>

@@ -43,4 +43,3 @@ class Bintime_Sinchimport_IndexController extends Mage_Adminhtml_Controller_Acti
         $this->getResponse()->setBody('<h2>done.</h2>');
     }
 }    
-    ?>

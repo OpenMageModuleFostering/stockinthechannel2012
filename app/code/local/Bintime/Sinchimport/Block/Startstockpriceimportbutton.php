@@ -135,4 +135,3 @@ class Bintime_Sinchimport_Block_Startstockpriceimportbutton extends Mage_Adminht
     }
 
 }
-?>

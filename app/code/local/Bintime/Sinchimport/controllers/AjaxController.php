@@ -73,4 +73,3 @@ class Bintime_Sinchimport_AjaxController extends Mage_Adminhtml_Controller_Actio
         echo "Finish Stock & Price import<br>";
     }	
 }    
-    ?>

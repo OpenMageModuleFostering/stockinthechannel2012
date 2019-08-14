@@ -183,4 +183,3 @@ class Bintime_Sinchimport_Helper_Getdata extends Mage_Core_Helper_Abstract
 	}
 
 }
-?>
