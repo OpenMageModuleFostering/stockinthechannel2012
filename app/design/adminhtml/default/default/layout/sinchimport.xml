@@ -13,7 +13,7 @@
 <!-- To add a tab on edit product page -->
 
     <!-- Change  -->
-    <adminhtml_sales_order_view>
+    <!--adminhtml_sales_order_view>
            <reference name="head">
                <action method="addJs"><file>mage/adminhtml/giftmessage.js</file></action>
                <action method="addJs"><file>mage/adminhtml/giftoptions/tooltip.js</file></action>
@@ -50,7 +50,7 @@
                    <action method="addTab"><name>order_transactions</name><block>adminhtml/sales_order_view_tab_transactions</block></action>   
                </block>
            </reference>
-       </adminhtml_sales_order_view>
+       </adminhtml_sales_order_view-->
    
 
 
