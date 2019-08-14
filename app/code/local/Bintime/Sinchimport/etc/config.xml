@@ -256,7 +256,7 @@
         <jobs>
             <fullsinchimport>
                 <schedule>
-                    <cron_expr>0 2 * 6 *</cron_expr>
+                    <cron_expr>0 23 * * 6</cron_expr>
                 </schedule>
                 <run>
                     <model>sinchimport/sinch::cron_start_full_import</model>
