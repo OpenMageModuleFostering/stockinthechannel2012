@@ -4,12 +4,12 @@ $installer = $this;
 
 //прямое подключение к базе необходимо для добавления хранимки
     $config = $installer->getConnection()->getConfig();
-    $cnx = mysql_connect($config['host'], $config['username'], $config['password']);
+    $cnx = mysqli_connect($config['host'], $config['username'], $config['password']);
     if (!$cnx) {
         throw new Exception('Failed to connect to database.');
     }
 
-    if (!mysql_select_db($config['dbname'])) {
+    if (!mysqli_select_db($cnx, $config['dbname'])) {
         throw new Exception('Failed to select a database.');
     }
 
@@ -19,8 +19,8 @@ $installer->startSetup();
 $check_store_category_id=1;
 $check_parent_store_category_id=1;
 $q="show columns from catalog_category_entity";
-$res=mysql_query($q);
-while($row=mysql_fetch_assoc($res)){
+$res=mysqli_query($cnx, $q);
+while($row=mysqli_fetch_assoc($res)){
 		  if($row['Field']=='store_category_id'){
 					 $check_store_category_id=0;
 		  }elseif($row['Field']=='parent_store_category_id'){
@@ -265,10 +265,10 @@ BEGIN
 END
 ";
 
-if (!mysql_query($query, $cnx)) {
+if (!mysqli_query($cnx, $query)) {
     throw new Exception("Failed to create stored procedure");
 }
 
-mysql_close($cnx);
+mysqli_close($cnx);
 
 $installer->endSetup();

@@ -71,7 +71,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract {
         $this->price_breaks_filter=PRICE_BREAKS;
         /*$this->db_connect();
                 $res = $this->db_do("select languages_id from languages where code='".LANG_CODE."'");
-                $row = mysql_fetch_assoc($res);
+                $row = mysqli_fetch_assoc($res);
                 $this->lang_id = $row['languages_id'];
         */
         $this->varDir = TEMPORARY_DIRECTORY_FOR_STORING_FILES;
@@ -150,7 +150,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract {
     function is_imort_not_run(){
         $q="SELECT IS_FREE_LOCK('sinchimport') as getlock";
         $quer=$this->db_do($q);
-        $row=mysql_fetch_array($quer);
+        $row=mysqli_fetch_array($quer);
         return $row['getlock'];
     }
 #################################################################################################
@@ -159,7 +159,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract {
         $q='SHOW PROCEDURE STATUS LIKE "'.Mage::getSingleton('core/resource')->getTableName('filter_sinch_products_s').'"';
         $quer=$this->db_do($q);
         $result=false;
-        While($row=mysql_fetch_array($quer)){
+        While($row=mysqli_fetch_array($quer)){
             if(($row['Name']==Mage::getSingleton('core/resource')->getTableName('filter_sinch_products_s')) && ($row['Db']==$dbConf->dbname)){
                 $result = true;
             }
@@ -170,7 +170,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract {
     function check_db_privileges(){        
         $q='SHOW PRIVILEGES';
         $quer=$this->db_do($q);
-        while($row=mysql_fetch_array($quer)){
+        while($row=mysqli_fetch_array($quer)){
             if($row['Privilege']=='File' && $row['Context']=='File access on server'){
                 return true;
             }      
@@ -181,7 +181,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract {
     function check_local_infile(){
         $q='SHOW VARIABLES LIKE "local_infile"';
         $quer=$this->db_do($q);
-        $row=mysql_fetch_array($quer);
+        $row=mysqli_fetch_array($quer);
         if($row['Variable_name']=='local_infile' && $row['Value']=="ON"){
             return true;
         }else{
@@ -194,7 +194,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract {
             FROM ".Mage::getSingleton('core/resource')->getTableName('stINch_import_status_statistic')." 
             WHERE import_type='FULL' AND global_status_import='Successful'";
         $quer=$this->db_do($q);
-        $row=mysql_fetch_array($quer);
+        $row=mysqli_fetch_array($quer);
         if($row['cnt']>0){
             return true;
         }else{
@@ -628,7 +628,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract {
 			/**/
 			if (!$this->check_loaded_data($parse_file, $categories_temp))
 			{
-				$inf = mysql_info();
+				$inf = mysqli_info();
 				$this->set_import_error_reporting_message('The Stock In The Channel data files do not appear to be in the correct format. Check file'.$parse_file. "(LOAD DATA ... ".$inf.")");
 				exit;
 			}/**/
@@ -892,7 +892,7 @@ echo("\n\n    $query\n\n");
 
 
 		$categories = $this->db_do("SELECT entity_id, parent_id FROM $catalog_category_entity ORDER BY parent_id");
-		while ($row = mysql_fetch_array($categories))
+		while ($row = mysqli_fetch_array($categories))
 		{
 			$parent_id = $row['parent_id'];
 			$entity_id = $row['entity_id'];
@@ -903,7 +903,7 @@ echo("\n\n    $query\n\n");
 				UPDATE $catalog_category_entity 
 				SET path = '$path' 
 				WHERE entity_id = $entity_id");
-		} // while ($row = mysql_fetch_array($categories))
+		} // while ($row = mysqli_fetch_array($categories))
 
 
 
@@ -1523,7 +1523,7 @@ $query = "
 echo("\n    $query\n");
 		$root_categories = $this->db_do($query);
 
-		while($root_cat = mysql_fetch_array($root_categories))
+		while($root_cat = mysqli_fetch_array($root_categories))
 		{
 			$root_id   = $root_cat['entity_id'];
 			$root_name = $root_cat['RootName'];
@@ -1594,13 +1594,13 @@ echo("\n\n    ==================================================================
 				AND cce.entity_type_id = ccev.entity_type_id
 				AND ccev.attribute_id = 41
 			WHERE parent_id = 1"); // 41 - category name
-            while ($row = mysql_fetch_array($query)) $old_cats[] = $row['category_name'];
+            while ($row = mysqli_fetch_array($query)) $old_cats[] = $row['category_name'];
 
 //var_dump($old_cats);
 
 
 		$query = $this->db_do("SELECT MAX(entity_id) AS max_entity_id FROM $catalog_category_entity");
-		$max_entity_id = mysql_fetch_array($query);
+		$max_entity_id = mysqli_fetch_array($query);
 
 //var_dump($max_entity_id);
 
@@ -1685,15 +1685,15 @@ echo("\n    createNewDefaultCategories done... \n    ===========================
 				AND ccev.attribute_id = 41
 			WHERE parent_id = 1"); // 41 - category name
 			$OLD = array();
-			while($root_cat = mysql_fetch_array($root_categories)) $OLD[] = $root_cat['category_name'];
+			while($root_cat = mysqli_fetch_array($root_categories)) $OLD[] = $root_cat['category_name'];
 
 			$new_categories = $this->db_do("SELECT DISTINCT RootName FROM $categories_temp");
             
 //STP            $new_categories = $this->db_do("SELECT DISTINCT ctemp.RootName, ctype.name FROM $categories_temp ctemp LEFT JOIN $category_types ctypes on ctemp.RootName = ctype.name");
 
 			$NEW = array();
-			while($new_root_cat = mysql_fetch_array($new_categories)) $exists_coincidence[$new_root_cat['RootName']] = TRUE;
-    /////STP while($new_root_cat = mysql_fetch_array($new_categories)) $exists_coincidence[$new_root_cat['name']] = TRUE;
+			while($new_root_cat = mysqli_fetch_array($new_categories)) $exists_coincidence[$new_root_cat['RootName']] = TRUE;
+    /////STP while($new_root_cat = mysqli_fetch_array($new_categories)) $exists_coincidence[$new_root_cat['name']] = TRUE;
 /**
 			$exists_coincidence = array();
 
@@ -1902,7 +1902,7 @@ $query = "
 echo("\n\n$query\n\n");
 		$root_categories = $this->db_do($query);
 
-		while($root_cat = mysql_fetch_array($root_categories))
+		while($root_cat = mysqli_fetch_array($root_categories))
 		{
 			$root_id   = $root_cat['entity_id'];
 			$root_name = $root_cat['RootName'];
@@ -2052,7 +2052,7 @@ echo("\n\n$query\n\n");
 
 
 		$categories = $this->db_do("SELECT entity_id, parent_id FROM $catalog_category_entity ORDER BY parent_id");
-		while ($row = mysql_fetch_array($categories))
+		while ($row = mysqli_fetch_array($categories))
 		{
 			$parent_id = $row['parent_id'];
 			$entity_id = $row['entity_id'];
@@ -2063,7 +2063,7 @@ echo("\n\n$query\n\n");
 				UPDATE $catalog_category_entity 
 				SET path = '$path' 
 				WHERE entity_id = $entity_id");
-		} // while ($row = mysql_fetch_array($categories))
+		} // while ($row = mysqli_fetch_array($categories))
 
 
 ///////////////////////////////////////////////////////
@@ -2543,7 +2543,7 @@ echo("\n\n$query\n\n");
 			FROM $catalog_category_entity 
 			WHERE entity_id = $cat_id";
 		$quer = $this->db_do($q);
-		$row = mysql_fetch_array($quer);
+		$row = mysqli_fetch_array($quer);
 		while ($row['parent_id'])
 		{
 			$path = $row['parent_id'].'/'.$path;
@@ -2555,7 +2555,7 @@ echo("\n\n$query\n\n");
 				FROM $catalog_category_entity
 				WHERE entity_id = $parent_id";
 			$quer = $this->db_do($q);
-			$row = mysql_fetch_array($quer);
+			$row = mysqli_fetch_array($quer);
 		}
 
 		if ($cat_id) $path.=$cat_id."/";
@@ -4587,7 +4587,7 @@ echo("\n     replaceMagentoProductsMultistore 41\n");
 			WHERE parent_store_category_id = 0");
 
 		$store_cat_ids = $this->db_do("SELECT store_category_id FROM $categories_temp");
-		while ($row = mysql_fetch_array($store_cat_ids))
+		while ($row = mysqli_fetch_array($store_cat_ids))
 		{
 			$store_category_id = $row['store_category_id'];
 
@@ -4803,7 +4803,7 @@ echo("\n     replaceMagentoProductsMultistore 41\n");
 
 
 		$categories = $this->db_do("SELECT entity_id, parent_id FROM $catalog_category_entity ORDER BY parent_id");
-		while ($row = mysql_fetch_array($categories))
+		while ($row = mysqli_fetch_array($categories))
 		{
 			$parent_id = $row['parent_id'];
 			$entity_id = $row['entity_id'];
@@ -5477,7 +5477,7 @@ echo("\n     replaceMagentoProductsMultistore 41\n");
                 WHERE aov.value  IS NULL";
             $quer=$this->db_do($q);
 
-            while($row=mysql_fetch_array($quer)){
+            while($row=mysqli_fetch_array($quer)){
                 $q0="INSERT INTO ".Mage::getSingleton('core/resource')->getTableName('eav_attribute_option')." 
                         (attribute_id) 
                      VALUES(".$this->attributes['manufacturer'].")";
@@ -5489,7 +5489,7 @@ echo("\n     replaceMagentoProductsMultistore 41\n");
                      )(
                        SELECT 
                         max(option_id) as option_id, 
-                        "."'".mysql_real_escape_string($row['manufacturer_name'])."' 
+                        "."'".mysqli_real_escape_string($row['manufacturer_name'])."' 
                        FROM ".Mage::getSingleton('core/resource')->getTableName('eav_attribute_option')." 
                        WHERE attribute_id=".$this->attributes['manufacturer']."
                      )
@@ -5630,20 +5630,8 @@ echo("\nParseProducts 2\n");
         $parse_file=$this->varDir.FILE_PRODUCTS;
         if(filesize($parse_file)){
             $this->_LOG("Start parse ".FILE_PRODUCTS);
-
-            $file_handle_from = fopen($parse_file, "r");
-            unlink($parse_file.".conv");
-            $file_handle_to = fopen($parse_file.".conv", "w");
-            while (!feof($file_handle_from)) {
-                $line = fgets($file_handle_from);
-                $line = $this->valid_utf($line); 
-                fwrite($file_handle_to, $line);	   
-            }
-            fclose($file_handle_from);
-            fclose($file_handle_to);
 echo("\nParseProducts 2\n");
 
-            //			$prod_file_str = file_get_contents($parse_file);
             $this->db_do("DROP TABLE IF EXISTS ".Mage::getSingleton('core/resource')->getTableName('products_temp'));
         if($this->product_file_format == "NEW"){
             $this->db_do("CREATE TABLE ".Mage::getSingleton('core/resource')->getTableName('products_temp')."(
@@ -5714,7 +5702,7 @@ echo("\nParseProducts 2\n");
 
         }
 echo("\nParseProducts 3\n");
-            $this->db_do("LOAD DATA LOCAL INFILE '".$parse_file.".conv' 
+            $this->db_do("LOAD DATA LOCAL INFILE '".$parse_file."' 
                           INTO TABLE ".Mage::getSingleton('core/resource')->getTableName('products_temp')." 
                           FIELDS TERMINATED BY '".$this->field_terminated_char."' 
                           OPTIONALLY ENCLOSED BY '\"' 
@@ -5754,15 +5742,6 @@ echo("\nParseProducts 3\n");
 
 echo("\nParseProducts 4\n");
 
-
-            //$this->db_do("DELETE FROM stINch_products WHERE sinch_product_id IN (4936140, 4326529)");
-
-//echo("\n\n clear parse products....\n\n"); //exit;
-
-
-
-            $this->db_do("ALTER TABLE ".Mage::getSingleton('core/resource')->getTableName('products_temp')." 
-                          CONVERT TO CHARACTER SET \"latin1\"");
 echo("\nParseProducts 5\n");
             $this->db_do("UPDATE ".Mage::getSingleton('core/resource')->getTableName('products_temp')." 
                           SET products_date_added=now(), products_last_modified=now()");
@@ -5775,7 +5754,7 @@ echo("\nParseProducts 7\n");
             if($this->current_import_status_statistic_id){
                 $res = $this->db_do("SELECT COUNT(*) AS cnt 
                                      FROM ".Mage::getSingleton('core/resource')->getTableName('products_temp'));
-                $row = mysql_fetch_assoc($res);
+                $row = mysqli_fetch_assoc($res);
                 $this->db_do("UPDATE ".$this->import_status_statistic_table." 
                               SET number_of_products=".$row['cnt']." 
                               WHERE id=".$this->current_import_status_statistic_id); 
@@ -5869,18 +5848,6 @@ echo("\nParseProducts 11\n");
         $parse_file=$this->varDir.FILE_RESTRICTED_VALUES;
         if(filesize($parse_file) || $this->_ignore_restricted_values){
             $this->_LOG("Start parse ".FILE_RESTRICTED_VALUES);
-            $file_handle_from = fopen($parse_file, "r");
-            unlink($parse_file.".conv");
-            $file_handle_to = fopen($parse_file.".conv", "w");
-            while (!feof($file_handle_from)) {
-                $line = fgets($file_handle_from);
-                $line = $this->valid_utf($line); 
-                fwrite($file_handle_to, $line);	   
-            }
-            fclose($file_handle_from);
-            fclose($file_handle_to);
-
-
             $this->db_do("DROP TABLE IF EXISTS ".Mage::getSingleton('core/resource')->getTableName('restricted_values_temp'));
             $this->db_do("CREATE TABLE ".Mage::getSingleton('core/resource')->getTableName('restricted_values_temp')." (
                             restricted_value_id int(11),
@@ -5891,15 +5858,13 @@ echo("\nParseProducts 11\n");
                             KEY(category_feature_id)
                           )");
             if(!$this->_ignore_restricted_values){
-                $this->db_do("LOAD DATA LOCAL INFILE '".$parse_file.".conv' 
+                $this->db_do("LOAD DATA LOCAL INFILE '".$parse_file."' 
                               INTO TABLE ".Mage::getSingleton('core/resource')->getTableName('restricted_values_temp')." 
                               FIELDS TERMINATED BY '".$this->field_terminated_char."' 
                               OPTIONALLY ENCLOSED BY '\"' 
                               LINES TERMINATED BY \"\r\n\" 
                               IGNORE 1 LINES ");
             }
-            $this->db_do("ALTER TABLE ".Mage::getSingleton('core/resource')->getTableName('restricted_values_temp')." 
-                          CONVERT TO CHARACTER SET \"latin1\"");	
             $this->db_do("DROP TABLE IF EXISTS ".Mage::getSingleton('core/resource')->getTableName('stINch_restricted_values'));
             $this->db_do("RENAME TABLE ".Mage::getSingleton('core/resource')->getTableName('restricted_values_temp')." 
                           TO ".Mage::getSingleton('core/resource')->getTableName('stINch_restricted_values'));
@@ -5942,7 +5907,7 @@ echo("\nParseProducts 11\n");
                                  FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity')." a
                                  INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stock_and_prices_temp')." b 
                                     ON a.store_product_id=b.store_product_id");
-            $row = mysql_fetch_assoc($res);
+            $row = mysqli_fetch_assoc($res);
             $this->db_do("UPDATE ".$this->import_status_statistic_table." 
                           SET number_of_products=".$row['cnt']." 
                           WHERE id=".$this->current_import_status_statistic_id);
@@ -6245,7 +6210,7 @@ echo("\nParseProducts 11\n");
                                 FROM ".Mage::getSingleton('core/resource')->getTableName('core_store')." 
                                 WHERE code!='admin'
                               "); //  where code!='admin' was adder for editing Featured products;
-        while ($row = mysql_fetch_assoc($result)) {
+        while ($row = mysqli_fetch_assoc($result)) {
             $sql = "INSERT INTO ".Mage::getSingleton('core/resource')->getTableName('products_website_temp')." (
                         store_product_id, 
                         sinch_product_id, 
@@ -7655,7 +7620,7 @@ STP DELETE*/
                                 FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_product_link_type')
                               );
         $link_type=array();
-        while ($row = mysql_fetch_array($result)) {
+        while ($row = mysqli_fetch_array($result)) {
             $link_type[$row['code']]=$row['link_type_id'];
         }
 
@@ -7732,7 +7697,7 @@ STP DELETE*/
         /*            $q="select distinct store_product_id from stINch_related_products";            
                       $quer=$this->db_do($q);
                       $prod = Mage::getModel('catalog/product');
-                      while ($row = mysql_fetch_assoc($quer)) {
+                      while ($row = mysqli_fetch_assoc($quer)) {
                       $q1="select distinct store_related_product_id store_product_id from stINch_related_products where store_product_id=".$row['store_product_id'].;
                       $quer1=$this->db_do($q1);
                       $prod->load($row['store_product_id']);        
@@ -7749,7 +7714,7 @@ STP DELETE*/
 ###$product->save();
 ###                                           
     $i=1;
-    while ($row1 = mysql_fetch_assoc($quer1)) {
+    while ($row1 = mysqli_fetch_assoc($quer1)) {
     $param[$row1['store_related_product_id']]['position']=$i++;      
 
     }    
@@ -8026,7 +7991,7 @@ STP DELETE*/
 			FROM ".Mage::getSingleton('core/resource')->getTableName('import_pricerules')." 
 			ORDER BY rating DESC
 		");
-		while($row = mysql_fetch_assoc($result)) {
+		while($row = mysqli_fetch_assoc($result)) {
 			$rulesArray[$row['id']] = $row;
 		}
 		return $rulesArray;
@@ -8216,7 +8181,7 @@ STP DELETE*/
         $q="SELECT customer_group_id FROM ".Mage::getSingleton('core/resource')->getTableName('customer_group');
         $quer=$this->db_do($q);
 
-        while ($row = mysql_fetch_assoc($quer)) {
+        while ($row = mysqli_fetch_assoc($quer)) {
             $result = $this->db_do("
                                     INSERT INTO ".Mage::getSingleton('core/resource')->getTableName('catalog_product_index_price')." (
                                         entity_id,
@@ -8346,7 +8311,7 @@ STP DELETE*/
             FROM ".Mage::getSingleton('core/resource')->getTableName('stINch_products')." 
             WHERE store_product_id =".$store_product_id;
         $quer=$this->db_do($q);
-        $product=mysql_fetch_array($quer);
+        $product=mysqli_fetch_array($quer);
 
         $this->productDescription = (string) substr($product['description'],50,0);
         $this->fullProductDescription = (string)$product['description'];
@@ -8361,7 +8326,7 @@ STP DELETE*/
                 FROM ".Mage::getSingleton('core/resource')->getTableName('stINch_manufacturers')." 
                 WHERE sinch_manufacturer_id=".$product['sinch_manufacturer_id'];
             $quer=$this->db_do($q);
-            $manufacturer=mysql_fetch_array($quer);	   	
+            $manufacturer=mysqli_fetch_array($quer);	   	
             $this->vendor = (string)$manufacturer['manufacturer_name'];
         }
         $q="SELECT DISTINCT ean_code 
@@ -8370,7 +8335,7 @@ STP DELETE*/
                 ON sec.product_id=sp.sinch_product_id 
             WHERE sp.store_product_id=".$store_product_id;
         $quer=$this->db_do($q);
-        while ($row=mysql_fetch_array($quer)){
+        while ($row=mysqli_fetch_array($quer)){
             $EANarr[]=$row['ean_code'];
         }
         //	   $prodEAN = $productTag->EANCode;
@@ -8395,7 +8360,7 @@ STP DELETE*/
                 INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_categories_features')." c 
                     ON b.category_feature_id = c.category_feature_id
                 WHERE a.sinch_product_id = '" .$this->sinchProductId . "'" );
-        while ($features = mysql_fetch_array($product_info_features)) {
+        while ($features = mysqli_fetch_array($product_info_features)) {
             $descriptionArray[$features['name']] = $features['value'];
         }
 
@@ -8432,7 +8397,7 @@ STP DELETE*/
 
         //	echo $q;
         $quer=$this->db_do($q);
-        while($row=mysql_fetch_array($quer)){
+        while($row=mysqli_fetch_array($quer)){
 
             $productArray = array();
             $productArray['name'] = (string)$row['product_name'];
@@ -8463,7 +8428,7 @@ STP DELETE*/
                          FROM ".Mage::getSingleton('core/resource')->getTableName('stINch_products_pictures_gallery')." 
                          WHERE store_product_id=".$store_product_id);
 
-        $res=mysql_fetch_array($q);
+        $res=mysqli_fetch_array($q);
         if(!$res || !$res['cnt']){
             return false;
         }
@@ -8475,7 +8440,7 @@ STP DELETE*/
 
         $res=$this->db_do($q);
 
-        while($photo=mysql_fetch_array($res)){
+        while($photo=mysqli_fetch_array($res)){
             $picHeight = (int)500;//$photo["PicHeight"];
             $picWidth = (int)500;//$photo["PicWidth"];
             $thumbUrl = (string)$photo["ThumbPic"];
@@ -8612,7 +8577,7 @@ STP DELETE*/
         $q=$this->db_do("SELECT store_product_id 
                          FROM ".Mage::getSingleton('core/resource')->getTableName('stINch_products_mapping')." 
                          WHERE entity_id=".$entity_id);
-        $res=mysql_fetch_array($q);
+        $res=mysqli_fetch_array($q);
         //	echo $entity_id."AAAA".$res['store_product_id']; exit;
         return ($res['store_product_id']);
     }         
@@ -8623,14 +8588,15 @@ STP DELETE*/
         //	$connection = Mage::getModel('core/resource')->getConnection('core_write');
         $dbConf = Mage::getConfig()->getResourceConnectionConfig('core_setup');
 
-        if ($this->db = mysql_connect($dbConf->host, $dbConf->username, $dbConf->password, true, 128)) {
-            if(mysql_select_db($dbConf->dbname)){ 
+        if ($this->db = mysqli_connect($dbConf->host, $dbConf->username, $dbConf->password)) {
+            mysqli_options($this->db, MYSQLI_OPT_LOCAL_INFILE, true);
+            if(mysqli_select_db($this->db, $dbConf->dbname)){ 
                 $this->_LOG("Connected..");
             }else{ 
-                die("Can't select the database: " . mysql_error()); 
+                die("Can't select the database: " . mysqli_error($this->db)); 
             }
         }else{ 
-            die("Could not connect: " . mysql_error()); 
+            die("Could not connect: " . mysqli_error($this->db)); 
 
         }
 
@@ -8639,15 +8605,11 @@ STP DELETE*/
 
     private function db_do($query) {
         if($this->debug_mode){
-            //        	$this->_LOG("Query: " . $query);
             Mage::log("Query: " . $query, null, $this->_logFile);
         }
-        //        $result = $this->this->db_do($query);//
-        //    $query=mysql_real_escape_string($query);
-        //mysql_query('set names utf8');
-        $result = mysql_query($query) or die("Query failed: " . mysql_error());
+        $result = mysqli_query($this->db, $query) or die("Query failed: " . mysqli_error($this->db));
         if (!$result) {
-            throw new Exception("Invalid query: $sql\n" . mysql_error());
+            throw new Exception("Invalid query: $sql\n" . mysqli_error($this->db));
         } else {
             return $result;
         }
@@ -8657,7 +8619,7 @@ STP DELETE*/
 ##################################################################################################
     function table_rows_count($table){
         $rows_count_res=$this->db_do("select count(*) as cnt from ".$table);
-        $rows_count=mysql_fetch_array($rows_count_res);
+        $rows_count=mysqli_fetch_array($rows_count_res);
         return ($rows_count['cnt']);
     }
 ##################################################################################################
@@ -8713,11 +8675,11 @@ STP DELETE*/
                                 WHERE entity_type_id=".$entity_type_id." 
                                     AND attribute_id=".$attribute_id
                               );
-        while($row=mysql_fetch_array($result)){
+        while($row=mysqli_fetch_array($result)){
             $value=$this->valid_char($row['value']);
             if($value!='' and $value!=$row['value']){
                 $this->db_do("UPDATE ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar')." 
-                              SET value='".mysql_real_escape_string($value)."' 
+                              SET value='".mysqli_real_escape_string($value)."' 
                               WHERE entity_id=".$row['entity_id']." 
                               AND entity_type_id=".$entity_type_id." 
                               AND attribute_id=".$attribute_id);
@@ -8847,7 +8809,7 @@ STP DELETE*/
             WHERE parent_store_category_id=".$id;
         $quer=$this->db_do($q);
         $count=0;
-        while ($row=mysql_fetch_array($quer)){
+        while ($row=mysqli_fetch_array($quer)){
             $count+=$this->count_children($row['store_category_id']);
             $count++;
         }
@@ -8894,7 +8856,7 @@ STP DELETE*/
             FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_category_entity')." 
             WHERE entity_id=".$cat_id;
         $quer=$this->db_do($q);
-        $row=mysql_fetch_array($quer);
+        $row=mysqli_fetch_array($quer);
         while($row['parent_id']){
             $path=$row['parent_id'].'/'.$path;
             $q="SELECT 
@@ -8902,7 +8864,7 @@ STP DELETE*/
                 FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_category_entity')." 
                 WHERE entity_id=".$row['parent_id'];
             $quer=$this->db_do($q);
-            $row=mysql_fetch_array($quer);
+            $row=mysqli_fetch_array($quer);
 
         }
         if($cat_id){
@@ -8924,13 +8886,13 @@ STP DELETE*/
             WHERE store_category_id=".$id;
         $quer=$this->db_do($q);
         $level=1;
-        $row=mysql_fetch_array($quer);
+        $row=mysqli_fetch_array($quer);
         while ($row['parent_store_category_id']!=0){
             $q="SELECT parent_store_category_id 
                 FROM ".Mage::getSingleton('core/resource')->getTableName('categories_temp')." 
                 WHERE store_category_id=".$row['parent_store_category_id'];
             $quer=$this->db_do($q);
-            $row=mysql_fetch_array($quer);
+            $row=mysqli_fetch_array($quer);
             $level++;
             if($level>20){
                 break;
@@ -8968,7 +8930,7 @@ STP DELETE*/
         $q="SELECT MAX(id) AS id FROM ".$this->import_status_statistic_table;
 
         $quer=$this->db_do($q);
-        $row=mysql_fetch_array($quer);
+        $row=mysqli_fetch_array($quer);
         $this->current_import_status_statistic_id=$row['id'];  
         $this->db_do("UPDATE ".$this->import_status_statistic_table." 
                       SET global_status_import='Failed' 
@@ -8984,13 +8946,13 @@ STP DELETE*/
 #################################################################################################
     function set_import_error_reporting_message($message){
         $this->db_do("UPDATE ".$this->import_status_statistic_table." 
-                      SET error_report_message='".mysql_real_escape_string($message)."' 
+                      SET error_report_message='".mysqli_real_escape_string($message)."' 
                       WHERE id=".$this->current_import_status_statistic_id);
     } 
 #################################################################################################
     function getImportStatusHistory(){
         $res="SELECT COUNT(*) FROM ".$this->import_status_statistic_table; 
-        $cnt_arr=mysql_fetch_array($this->db_do($res));
+        $cnt_arr=mysqli_fetch_array($this->db_do($res));
         $cnt=$cnt_arr[0];    
         $StatusHistory_arr = array(); 
         if($cnt>0){
@@ -9007,7 +8969,7 @@ STP DELETE*/
                 FROM ".$this->import_status_statistic_table." 
                 ORDER BY start_import limit ".$a.", ".$b;
             $result=$this->db_do($q);
-            while($row=mysql_fetch_array($result)){
+            while($row=mysqli_fetch_array($result)){
                 $StatusHistory_arr[]=$row;
             }
         }
@@ -9019,7 +8981,7 @@ STP DELETE*/
             FROM ".$this->import_status_statistic_table." 
             WHERE global_status_import='Successful' 
             ORDER BY id DESC LIMIT 1";
-        $imp_date=mysql_fetch_array($this->db_do($q));   
+        $imp_date=mysqli_fetch_array($this->db_do($q));   
         return $imp_date['start_import'];
     }
 #################################################################################################
@@ -9035,7 +8997,7 @@ STP DELETE*/
                 error_report_message 
             FROM ".$this->import_status_statistic_table." 
             ORDER BY id DESC LIMIT 1";
-        $imp_status=mysql_fetch_array($this->db_do($q));
+        $imp_status=mysqli_fetch_array($this->db_do($q));
         return $imp_status;
     }
 
@@ -9065,7 +9027,7 @@ STP DELETE*/
             FROM ".$this->import_status_table." 
             ORDER BY id LIMIT 1";
         $quer=$this->db_do($q);
-        if($row=mysql_fetch_array($quer)){
+        if($row=mysqli_fetch_array($quer)){
             $messages=array('message'=>$row['message'], 'id'=>$row['id'], 'finished'=>$row['finished']);
             $id=$row['id'];
         }
@@ -9085,7 +9047,7 @@ STP DELETE*/
                 LIMIT 1
                ";
         $result = $this->db_do($sql);
-        if ($row = mysql_fetch_assoc($result)) {
+        if ($row = mysqli_fetch_assoc($result)) {
             return $row['entity_type_id'];
         }
         return false;
@@ -9109,7 +9071,7 @@ STP DELETE*/
                 LIMIT 1
                 ";
             $result = $this->db_do($sql);
-            if ($row = mysql_fetch_assoc($result)) {
+            if ($row = mysqli_fetch_assoc($result)) {
 
                 $this->defaultAttributeSetId = $row['default_attribute_set_id'];
             }
@@ -9127,7 +9089,7 @@ STP DELETE*/
                     LIMIT 1
                    ";
             $result = $this->db_do($sql);
-            if ($row = mysql_fetch_assoc($result)) {
+            if ($row = mysqli_fetch_assoc($result)) {
                 $this->_categoryEntityTypeId	= $row['entity_type_id'];
                 $this->_categoryDefault_attribute_set_id = $row['default_attribute_set_id'];	
             }
@@ -9151,7 +9113,7 @@ STP DELETE*/
                     WHERE entity_type_id = '" . $typeId . "'
                    ";
             $result = $this->db_do($sql);
-            while ($row = mysql_fetch_assoc($result)) {
+            while ($row = mysqli_fetch_assoc($result)) {
                 $this->_attributeId[$typeCode][$row['attribute_code']] = $row['attribute_id'];
             }
         }
@@ -9192,7 +9154,7 @@ STP DELETE*/
             WHERE 
                 value='default-category'";
         $res=$this->db_do($q);  
-        $row=mysql_fetch_array($res);
+        $row=mysqli_fetch_array($res);
         if($row['entity_id']>0){
             return $row['entity_id'];
         }else{    
@@ -9201,7 +9163,7 @@ STP DELETE*/
                 WHERE parent_id=".$cat_id;
             $quer=$this->db_do($q);
             $count=0;
-            while ($row=mysql_fetch_array($quer)){
+            while ($row=mysqli_fetch_array($quer)){
                 $count++;
                 $entity_id=$row['entity_id'];
             }
@@ -9219,7 +9181,7 @@ STP DELETE*/
         $q='SHOW TABLES LIKE "'.Mage::getSingleton('core/resource')->getTableName('catalog_product_flat_').'%"';
         $quer=$this->db_do($q);
         $result=false;
-        While($row=mysql_fetch_array($quer)){
+        While($row=mysqli_fetch_array($quer)){
             if(is_array($row)){
                 $catalog_product_flat=array_pop($row);
                 $q='DELETE pf1 FROM '.$catalog_product_flat.' pf1 
@@ -9921,7 +9883,7 @@ STP DELETE*/
             WHERE store_product_id =".$store_product_id;
         $quer=$this->db_do($q);
         $offers = null;
-        while($row = mysql_fetch_array($quer)){
+        while($row = mysqli_fetch_array($quer)){
             $offers[]=$row;
         }
         return $offers;
@@ -9941,7 +9903,7 @@ STP DELETE*/
            WHERE parent_id=".$entity_id;
        $quer=$this->db_do($q);
        $children_cat='';
-       while ($row=mysql_fetch_array($quer)){
+       while ($row=mysqli_fetch_array($quer)){
            $children_cat .= ", '".$row['entity_id']."'";
            $children_cat .= $this->get_all_children_cat_recursive($row['entity_id']);
        }
@@ -9955,7 +9917,7 @@ STP DELETE*/
 //        echo $q;
         $quer=$this->db_do($q);
         $i=0;
-        while ($row=mysql_fetch_array($quer)){
+        while ($row=mysqli_fetch_array($quer)){
             $i++;
         }
         return ($i);

@@ -98,7 +98,7 @@ INSERT ".$installer->getTable('stINch_sinchcheck')."(caption, descr, check_code,
 		'You are missing the MySQL stored procedure ".$installer->getTable('filter_icecat_products_s').".sql', 'You can recreate it by running the script found in [shop dir]/app/code/local/Bintime/Sinchimport/sql/ in PhpMyAdmin');
                ");
 
-mysql_close($cnx);
+mysqli_close($cnx);
 
 $installer->endSetup();
 

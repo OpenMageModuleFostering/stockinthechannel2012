@@ -4,12 +4,12 @@ $installer = $this;
 
 //прямое подключение к базе необходимо для добавления хранимки
     $config = $installer->getConnection()->getConfig();
-    $cnx = mysql_connect($config['host'], $config['username'], $config['password']);
+    $cnx = mysqli_connect($config['host'], $config['username'], $config['password']);
     if (!$cnx) {
         throw new Exception('Failed to connect to database.');
     }
 
-    if (!mysql_select_db($config['dbname'])) {
+    if (!mysqli_select_db($cnx, $config['dbname'])) {
         throw new Exception('Failed to select a database.');
     }
 
@@ -124,10 +124,10 @@ BEGIN
 END
     ";
 
-if (!mysql_query($query, $cnx)) {
+if (!mysqli_query($cnx, $query)) {
     throw new Exception("Failed to create stored procedure");
 }
 
-mysql_close($cnx);
+mysqli_close($cnx);
 
 $installer->endSetup();

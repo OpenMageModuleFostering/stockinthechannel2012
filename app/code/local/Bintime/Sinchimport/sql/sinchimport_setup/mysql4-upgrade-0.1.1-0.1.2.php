@@ -5,20 +5,20 @@ stepan
 $installer = $this;
 
 $config = $installer->getConnection()->getConfig();
-$cnx = mysql_connect($config['host'], $config['username'], $config['password']);
+$cnx = mysqli_connect($config['host'], $config['username'], $config['password']);
 if (!$cnx) {
 		  throw new Exception('Failed to connect to database.');
 }
 
-if (!mysql_select_db($config['dbname'])) {
+if (!mysqli_select_db($cnx, $config['dbname'])) {
 		  throw new Exception('Failed to select a database.');
 }
 
 $check_store_product_id=1;
 $check_sinch_product_id=1;
 $q="show columns from catalog_product_entity";
-$res=mysql_query($q);
-while($row=mysql_fetch_assoc($res)){
+$res=mysqli_query($cnx, $q);
+while($row=mysqli_fetch_assoc($res)){
 		  if($row['Field']=='store_product_id'){
 					 $check_store_product_id=0;
 		  }elseif($row['Field']=='sinch_product_id'){

@@ -144,7 +144,7 @@ class Bintime_Sinchimport_Block_List extends Mage_Catalog_Block_Product_Compare_
 					 $q=" insert ignore into ".$tmp_table_sorted." (store_product_id, sinch_product_id, feature_name, text)	 values(".$store_product_id.",".$sinch_product_id.",'".$name."','".$value."')";
 					 $this->tep_db_query($q);
 				 		}
-//mysql_real_escape_string($name)
+//mysqli_real_escape_string($name)
 				 $i++;
 			 }
 		 }

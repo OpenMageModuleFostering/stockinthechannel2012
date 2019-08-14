@@ -1,4 +1,3 @@
-
 <?php
 
 class Bintime_Sinchimport_Block_Layer_View extends Mage_Catalog_Block_Layer_View
