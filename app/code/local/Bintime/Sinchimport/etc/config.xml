@@ -4,7 +4,7 @@
 
     <modules>
         <Bintime_Sinchimport>
-            <version>3.0.4</version>
+            <version>3.0.6</version>
             <depends>
             <!-- no dependencies -->
             </depends>

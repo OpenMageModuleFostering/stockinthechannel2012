@@ -35,7 +35,7 @@ class Bintime_Sinchimport_Model_Layer_Filter_Feature extends Mage_Catalog_Model_
         $attribute = $this->getAttributeModel();
         return $attribute['name'];
     }
-    
+
     /**
      * Retrieve resource instance
      *
@@ -75,14 +75,14 @@ class Bintime_Sinchimport_Model_Layer_Filter_Feature extends Mage_Catalog_Model_
         if (is_array($filter)) {
             return $this;
         }
-        
+
         $text = $this->_getOptionText($filter);
         if ($filter && $text) {
             $this->_getResource()->applyFilterToCollection($this, $filter);
             $this->getLayer()->getState()->addFilter($this->_createItem($text, $filter));
             $this->_items = array();
         }
-        
+
         return $this;
     }
 
@@ -110,7 +110,7 @@ class Bintime_Sinchimport_Model_Layer_Filter_Feature extends Mage_Catalog_Model_
         $feature = $this->getAttributeModel();
         $this->_requestVar = 'feature_' . $feature['category_feature_id'];
         $limitDirection = isset($feature['limit_direction']) ? $feature['limit_direction'] : 0;
-	
+
         $data = array();
         $options = explode("\n", $feature['restricted_values']);
 		if (count($options) == 0) {
@@ -118,7 +118,7 @@ class Bintime_Sinchimport_Model_Layer_Filter_Feature extends Mage_Catalog_Model_
 			return $data;
 		}
 		if (isset($feature['order_val']) && $feature['order_val'] == '2') {
-			$options = array_reverse($options);	
+			$options = array_reverse($options);
 		}
 		if ($limitDirection != self::LESS && $limitDirection != self::GREATER) {
 
@@ -151,7 +151,7 @@ class Bintime_Sinchimport_Model_Layer_Filter_Feature extends Mage_Catalog_Model_
 				for ($i = 0; $i < $oCount -1; $i++) {
 					$intervals[$i]['low'] = $options[$i];
 					$intervals[$i]['high'] = $options[$i +1];
-				} 
+				}
 			}
 			//FIXME: this is ugly
 			if ($feature['order_val'] == '2') {
@@ -224,25 +224,25 @@ class Bintime_Sinchimport_Model_Layer_Filter_Feature extends Mage_Catalog_Model_
         return $data;
     }
 
-    public function getOrderValues($category_feature_id,$categoryId)
+    /*public function getOrderValues($category_feature_id,$categoryId)
     {
-             $select = "
-                        SELECT COUNT(e.entity_id) AS count 
-                        FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity')." AS e 
-                        INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('catalog_category_product_index')." AS cat_index 
-                            ON cat_index.product_id=e.entity_id 
-                            AND cat_index.store_id='1' 
-                            AND cat_index.visibility IN(2, 4) 
-                            AND cat_index.category_id='".$categoryId."' 
-                        INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('catalog_product_index_price')." AS price_index 
-                            ON price_index.entity_id = e.entity_id 
-                            AND price_index.website_id = '1' 
-                            AND price_index.customer_group_id = 0 
-                        INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_products_feature_'.$feature['category_feature_id'])." AS idx_".$category_feature_id." 
-                            ON idx_".$category_feature_id.".entity_id = e.icecat_product_id;
-                      ";
+        $select = "
+            SELECT COUNT(e.entity_id) AS count
+            FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity')." AS e
+            INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('catalog_category_product_index')." AS cat_index
+                ON cat_index.product_id=e.entity_id
+                AND cat_index.store_id='1'
+                AND cat_index.visibility IN(2, 4)
+                AND cat_index.category_id='".$categoryId."'
+            INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('catalog_product_index_price')." AS price_index
+                ON price_index.entity_id = e.entity_id
+                AND price_index.website_id = '1'
+                AND price_index.customer_group_id = 0
+            INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_products_feature_'.$feature['category_feature_id'])." AS idx_".$category_feature_id."
+                ON idx_".$category_feature_id.".entity_id = e.icecat_product_id;
+        ";
 
-                return Mage::getSingleton('core/resource')->getConnection('core_read')->fetchCol($select);
-    }
-	
+        return Mage::getSingleton('core/resource')->getConnection('core_read')->fetchCol($select);
+    }*/
+
 }

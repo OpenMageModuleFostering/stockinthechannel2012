@@ -29,7 +29,7 @@ class Bintime_Sinchimport_Model_System_Config_ServerList
 			'ftpse.stockinthechannel.com' => 'Sweden - ftpse.stockinthechannel.com',
 			'ftpch.stockinthechannel.com' => 'Switzerland - ftpch.stockinthechannel.com',
 			'ftptr.stockinthechannel.com' => 'Turkey - ftptr.stockinthechannel.com',
-			'ftpdemo.stockinthechannel.com' => 'Demo - ftpdemo.stockinthechannel.com',
+			'ftpdemo.stockinthechannel.com' => 'Demo - ftpdemo.stockinthechannel.com'
 		);
 		return $paramsArray;
 	}

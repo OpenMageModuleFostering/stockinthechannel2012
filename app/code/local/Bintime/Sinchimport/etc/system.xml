@@ -126,6 +126,25 @@
                         </start_sinch_import>
                     </fields>
                </sinch_import_fullstatus>
+							 <sinch_backup_catalog translate="label">
+                    <label>Backup Categories and Products Ids</label>
+                    <frontend_type>text</frontend_type>
+                    <comment>Backup current Ids of products and categories to re-use when importing in overwrite mode.</comment>
+                    <sort_order>160</sort_order>
+                    <show_in_default>1</show_in_default>
+                    <show_in_website>1</show_in_website>
+                    <show_in_store>1</show_in_store>
+                    <fields>
+                        <start_sinch_import translate="label">
+                            <frontend_type>button</frontend_type>
+                            <frontend_model>sinchimport/backupbutton</frontend_model>                            
+                            <sort_order>4</sort_order>
+                            <show_in_default>1</show_in_default>
+                            <show_in_website>0</show_in_website>
+                            <show_in_store>0</show_in_store>
+                        </start_sinch_import>
+                    </fields>
+               </sinch_backup_catalog>
                <sinch_import_stockpricestatus translate="label">
                     <label>Import Stock &amp; Prices</label>
                     <frontend_type>text</frontend_type>

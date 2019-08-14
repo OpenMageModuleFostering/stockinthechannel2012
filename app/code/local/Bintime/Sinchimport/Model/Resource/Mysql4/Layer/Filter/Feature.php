@@ -3,11 +3,11 @@
 class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mage_Core_Model_Mysql4_Abstract
 {
     protected $resultTable = 'SinchFilterResult';
-    
+
     protected static $lastResultTable = false;
 
     protected $filterAplied = false;
-    
+
     /**
      * Initialize connection and define main table name
      *
@@ -25,7 +25,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
                     $id = (int)$id;
                     return $tablePrefix . $this->resultTable . "_$id";
                 break;
-            
+
             case 'search':
                     return $tablePrefix . $this->searchTable;
                 break;
@@ -55,6 +55,12 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
             $cfid = $feature['category_feature_id'];
         }
         $resultTable = $this->_getTableName('result', $cfid);
+        // Toàn Handsome đã thêm đoạn code này để kiểm tra bảng dữ liệu đã tồn tại hay chưa
+        $result = $connection->fetchPairs("SHOW TABLES LIKE '$resultTable'");
+        if ($result) {
+            return $resultTable;
+        }
+
         //TODO: this table must be temporary
         $sql = "
         CREATE TABLE IF NOT EXISTS `{$resultTable}`(
@@ -100,7 +106,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         return $resultTable;
     }
 
-    
+
     /**
      * Apply attribute filter to product collection
      *
@@ -113,7 +119,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         Varien_Profiler::start(__METHOD__);
         $searchTable = $this->_prepareSearch($filter, $value);
         self::$lastResultTable = $searchTable;
-        
+
         $collection = $filter->getLayer()->getProductCollection();
         $feature  = $filter->getAttributeModel();
         $connection = $this->_getReadAdapter();
@@ -140,45 +146,34 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
 
         // clone select from collection with filters
         $select = clone $filter->getLayer()->getProductCollection()->getSelect();
-        
+
         // reset columns, order and limitation conditions
         $select->reset(Zend_Db_Select::COLUMNS);
         $select->reset(Zend_Db_Select::ORDER);
         $select->reset(Zend_Db_Select::LIMIT_COUNT);
         $select->reset(Zend_Db_Select::LIMIT_OFFSET);
+
         $connection = $this->_getReadAdapter();
         $feature  = $filter->getAttributeModel();
-        $tableAlias = 'idx_' . $feature['category_feature_id'];
+        $featureId = $feature['category_feature_id'];
 
-        $conditions = array(
-            "{$tableAlias}.entity_id = e.entity_id",
-            //"{$tableAlias}.category_feature_id = {$feature['category_feature_id']}",
-        );
-            
         $select->joinInner(
-                            array($tableAlias => $this->_getTableName('stINch_products_feature_'.$feature['category_feature_id'])),
-                            join(' AND ', $conditions),
-                            array('value', 'count' => "COUNT(e.entity_id)")
-                          )
-            ->group("{$tableAlias}.value");
-		
-        $tablePattern = $this->_getTableName('stINch_products_feature_'.$feature['category_feature_id']);
-        $query = "SHOW TABLES LIKE '$tablePattern'";
-        $featureTables = $connection->fetchCol($query);
-        $presentFeatures = array();
-        foreach($featureTables as $t) {
-            if (preg_match("#$tablePattern#", $t, $matches)) {
-                $table_feat_exist=true;
-            }
-        }
+                array('sp' => $this->_getTableName('stINch_products')),
+                "sp.store_product_id = e.store_product_id",
+                array()
+            )->joinInner(
+                array('spf' => $this->_getTableName('stINch_product_features')),
+                "spf.sinch_product_id = e.sinch_product_id",
+                array()
+            )->joinInner(
+                array('srv' => $this->_getTableName('stINch_restricted_values')),
+                "spf.restricted_value_id = srv.restricted_value_id AND srv.category_feature_id = $featureId",
+                array('value' => 'srv.text', 'count' => 'COUNT(e.entity_id)')
+            )
+            ->group("srv.text");
 
         Varien_Profiler::stop(__METHOD__);
-	if($table_feat_exist){
-	        return $connection->fetchPairs($select);
-	}else{
-		return null;
-	}
-
+    	return $connection->fetchPairs($select);
     }
 
     public function getIntervalsCount($filter, $interval)
@@ -196,26 +191,33 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
 
         $connection = $this->_getReadAdapter();
         $feature  = $filter->getAttributeModel();
-        $tableAlias = 'idx_' . $feature['category_feature_id'];
-
-        $conditions = array(
-            "{$tableAlias}.entity_id = e.entity_id",
-            //"{$tableAlias}.category_feature_id = {$feature['category_feature_id']}",
-        );
-
         $select->joinInner(
-                            array($tableAlias => $this->_getTableName('icecat_products_feature_'.$feature['category_feature_id'])),
-                            join(' AND ', $conditions),
-                            array('count' => "COUNT(e.entity_id)")
-                          );
+                array('spf' => $this->_getTableName('stINch_product_features')),
+                "spf.sinch_product_id = e.sinch_product_id",
+                array()
+            )->joinLeft(
+                array('srv' => $this->_getTableName('stINch_restricted_values')),
+                "srv.restricted_value_id = spf.restricted_value_id",
+                array('value' => 'srv.text')
+            )->joinLeft(
+                array('scf' => $this->_getTableName('stINch_categories_features')),
+                "scf.category_feature_id = srv.category_feature_id",
+                array()
+            )->joinLeft(
+                array('scm' => $this->_getTableName('stINch_categories_mapping')),
+                "scm.shop_store_category_id = scf.store_category_id",
+                array('count' => "COUNT(e.entity_id)")
+            )
+            ->where('srv.category_feature_id = ?', $feature['category_feature_id']);
+
         if (isset($interval['low'], $interval['high'])) {
-            $select->where('CAST('.$tableAlias.'.value AS SIGNED) >= ?', $interval['low'])->where('CAST('.$tableAlias.'.value AS SIGNED) < ?', $interval['high']);
+            $select->where('CAST(srv.text AS SIGNED) >= ?', $interval['low'])->where('CAST(srv.text AS SIGNED) < ?', $interval['high']);
         }
         else if (isset($interval['low'])) {
-            $select->where('CAST('.$tableAlias.'.value AS SIGNED) >= ?', $interval['low']);
+            $select->where('CAST(srv.text AS SIGNED) >= ?', $interval['low']);
         }
         else if (isset($interval['high'])) {
-            $select->where('CAST('.$tableAlias.'.value AS SIGNED) < ?', $interval['high']);
+            $select->where('CAST(srv.text AS SIGNED) < ?', $interval['high']);
         }
         $count = $connection->fetchOne($select);
         Varien_Profiler::stop(__METHOD__);
@@ -237,34 +239,40 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
 
         $connection = $this->_getReadAdapter();
         $feature  = $filter->getAttributeModel();
-        $tableAlias = 'idx_' . $feature['category_feature_id'];
-
-        $conditions = array(
-            "{$tableAlias}.entity_id = e.entity_id",
-            //"{$tableAlias}.category_feature_id = {$feature['category_feature_id']}",
-        );
 
         $select->joinInner(
-                            array($tableAlias => $this->_getTableName('icecat_products_feature_'.$feature['category_feature_id'])),
-                            join(' AND ', $conditions),
-                            array('count' => "COUNT(e.entity_id)")
-                          );
+                array('spf' => $this->_getTableName('stINch_product_features')),
+                "spf.sinch_product_id = e.sinch_product_id",
+                array()
+            )->joinLeft(
+                array('srv' => $this->_getTableName('stINch_restricted_values')),
+                "srv.restricted_value_id = spf.restricted_value_id",
+                array('value' => 'srv.text')
+            )->joinLeft(
+                array('scf' => $this->_getTableName('stINch_categories_features')),
+                "scf.category_feature_id = srv.category_feature_id",
+                array()
+            )->joinLeft(
+                array('scm' => $this->_getTableName('stINch_categories_mapping')),
+                "scm.shop_store_category_id = scf.store_category_id",
+                array('count' => "COUNT(e.entity_id)")
+            )
+            ->where('srv.category_feature_id = ?', $feature['category_feature_id']);
+
         if (isset($interval['low'], $interval['high'])) {
-            $select->where('CAST('.$tableAlias.'.value AS SIGNED) >= ?', $interval['low'])->where('CAST('.$tableAlias.'.value AS SIGNED) < ?', $interval['high']);
+            $select->where('CAST(srv.text AS SIGNED) >= ?', $interval['low'])->where('CAST(srv.text AS SIGNED) < ?', $interval['high']);
         }
         else if (isset($interval['low'])) {
-            $select->where('CAST('.$tableAlias.'.value AS SIGNED) >= ?', $interval['low']);
+            $select->where('CAST(srv.text AS SIGNED) >= ?', $interval['low']);
         }
         else if (isset($interval['high'])) {
-            $select->where('CAST('.$tableAlias.'.value AS SIGNED) < ?', $interval['high']);
+            $select->where('CAST(srv.text AS SIGNED) < ?', $interval['high']);
         }
        $count = $connection->fetchOne($select);
 
         Varien_Profiler::stop(__METHOD__);
         return $count;
     }
-
-
 
     /*
      * INDEXES FOLLOW.
@@ -277,21 +285,36 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
      */
     public function reindex($observer)
     {
-        $this->splitProductsFeature();
+       $this->dropFeatureResultTables();
     }
-    
 
+    public function dropFeatureResultTables()
+    {
+        $connection = $this->_getWriteAdapter();
+        $dbName = Mage::getConfig()->getResourceConnectionConfig('core_setup')->dbname;
+        $filterResultTablePrefix = $this->_getTableName('SinchFilterResult_');
+        $dropSql = "
+            SET GROUP_CONCAT_MAX_LEN=10000;
+            SET @tbls = (SELECT GROUP_CONCAT(TABLE_NAME)
+                FROM information_schema.TABLES
+                WHERE TABLE_SCHEMA = '$dbName' AND TABLE_NAME LIKE '$filterResultTablePrefix%');
+            SET @delStmt = CONCAT('DROP TABLE ',  @tbls);
+            PREPARE stmt FROM @delStmt;
+            EXECUTE stmt;
+            DEALLOCATE PREPARE stmt;
+        ";
+        $connection->exec($dropSql);
+    }
+
+    // Toàn Handsome đã rào đoạn mã này
     /**
-     * Разбивает таблицу icecat_product_feature на таблицы вида icecat_product_feature_%category_feature_id% для каждой фичи.
-     * 
-     */
     public function splitProductsFeature()
     {
         Mage::log(__METHOD__ . " start at ".  date('d-m-Y H:i:s'), null, 'sinchlayered.log');
         $featureIds = $this->getProductFeatures4indexig();
 
         $resource = Mage::getSingleton('core/resource');
-//        $tProudctsFeature = $resource->getTableName("icecat_products_feature");
+        //$tProudctsFeature = $resource->getTableName("icecat_products_feature");
         $connection = $this->_getWriteAdapter();
 
         //удаление таблиц с фичами не используемыми больше для навигации.
@@ -313,49 +336,48 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
             $dropSql = "DROP TABLE " . implode(',', $features2delete);
             $connection->exec($dropSql);
         }
-        //
-        
+
         //Создание таблиц с фичами используемыми в навигации.
         $i = 0; $storeId = Mage::app()->getStore()->getId(); $websiteId = Mage::app()->getStore(true)->getWebsite()->getId();
         foreach ($featureIds as $featureId) {
             $tFeature = $resource->getTableName("stINch_products_feature_$featureId");
-	    $query = "DROP TABLE IF EXISTS $tFeature";
-	    $connection->exec($query);
+        $query = "DROP TABLE IF EXISTS $tFeature";
+        $connection->exec($query);
 
             $query = "CREATE TABLE IF NOT EXISTS $tFeature (
-			  `entity_id` int(11) default NULL,
-			  `feature_id` int(11) NOT NULL,
-			  `product_id` int(11) default NULL,
-			  `category_feature_id` int(11) default NULL,
-			  `value` text,
-			  `presentation_value` text,
-			  INDEX (`feature_id`),
-			  KEY `category_feature_id` (`category_feature_id`)
-			) ENGINE=MyISAM DEFAULT CHARSET=utf8
+              `entity_id` int(11) default NULL,
+              `feature_id` int(11) NOT NULL,
+              `product_id` int(11) default NULL,
+              `category_feature_id` int(11) default NULL,
+              `value` text,
+              `presentation_value` text,
+              INDEX (`feature_id`),
+              KEY `category_feature_id` (`category_feature_id`)
+            ) ENGINE=MyISAM DEFAULT CHARSET=utf8
             ";
             $connection->exec($query);
 
             $query = "TRUNCATE TABLE $tFeature";
             $connection->exec($query);
 
-            /*$query = "
+            $query = "
                 INSERT INTO $tFeature (feature_id, product_id, category_feature_id, value, presentation_value)
                 SELECT feature_id, product_id, category_feature_id, value, presentation_value FROM $tProudctsFeature
                 WHERE category_feature_id = $featureId
-                ";*/
+                ";
             $query = "
                       REPLACE INTO $tFeature (entity_id,feature_id, product_id, category_feature_id, value, presentation_value)
                       SELECT E.entity_id, RV.category_feature_id,E.entity_id, RV.category_feature_id, RV.text , RV.text
                       FROM ".Mage::getSingleton('core/resource')->getTableName('catalog_product_entity')." E
                       INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('catalog_category_product_index')." PCind
                       ON (E.entity_id = PCind.product_id AND PCind.store_id='{$storeId}' AND PCind.visibility IN(2,4))
-                      INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('catalog_product_index_price')." AS price_index 
+                      INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('catalog_product_index_price')." AS price_index
                       ON price_index.entity_id = E.entity_id AND price_index.website_id = '{$websiteId}' AND price_index.customer_group_id = 0
                       INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_products')." PR
                       ON (PR.store_product_id = E.store_product_id)
                       INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_product_features')." PF
                       ON (PR.sinch_product_id = PF.sinch_product_id )
-                      INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_restricted_values')." RV 
+                      INNER JOIN ".Mage::getSingleton('core/resource')->getTableName('stINch_restricted_values')." RV
                       ON (PF.restricted_value_id=RV.restricted_value_id AND RV.category_feature_id= $featureId)
                       GROUP BY E.entity_id;
                     ";
@@ -364,11 +386,6 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         Mage::log(__METHOD__ . " end at ".  date('d-m-Y H:i:s'), null, 'sinchlayered.log');
     }
 
-    /**
-     * Список фич подлежащих индексации.
-     * 
-     * @return array
-     */
     private function getProductFeatures4indexig()
     {
         $connection = $this->_getReadAdapter();
@@ -378,4 +395,5 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
 
         return $connection->fetchCol($query);
     }
+    */
 }

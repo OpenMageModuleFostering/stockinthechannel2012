@@ -142,10 +142,13 @@ class Bintime_Sinchimport_Model_Layer_Filter_Price extends Mage_Catalog_Model_La
                 list($minPrice, $maxPrice) = $price_range_value;
                 if(is_numeric($minPrice) && (is_numeric($maxPrice) || $maxPrice=='*')){
                     $count=$this->_getResource()->getCountMinMaxPrice($this, $minPrice, $maxPrice);
+										$fromPrice = $minPrice;
+										$toPrice = ($maxPrice == '*') ? '' : ($maxPrice);
                     if($count){
                         $data[] = array(
                                 'label' => $this->_renderItemLabelMinMaxPrice($minPrice, $maxPrice),
                                 'value' =>$price_range_value,
+                                'value' =>$minPrice . '-' . $maxPrice,
                                 'count' => $count,
                                 );
                     }

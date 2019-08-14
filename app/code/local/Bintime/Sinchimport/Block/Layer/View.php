@@ -40,7 +40,7 @@ class Bintime_Sinchimport_Block_Layer_View extends Mage_Catalog_Block_Layer_View
 /* ------------ */     
         foreach ($this->filterableFeatures as $feature) {
             $filters[] = $this->getChild('feature_' . $feature['feature_id'] . '_filter');
-        }       
+        }
 /* ------------ */
         
         return $filters;
