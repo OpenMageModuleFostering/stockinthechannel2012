@@ -1,13 +1,12 @@
 <?php
-    $baseDir = dirname(__FILE__);
-    require $baseDir . '/../../../../../app/Mage.php';
+$baseDir = dirname(__FILE__);
+require $baseDir . '/../../../../../app/Mage.php';
 
-    Mage::app();
+Mage::app();
 
-    $import=Mage::getModel('sinchimport/sinch');
+$import=Mage::getModel('sinchimport/sinch');
 
-    $import->run_sinch_import();
+$import->run_sinch_import();
 
-    $import->addImportStatus('Finish import', 1);
-    
+$import->addImportStatus('Finish import', 1);
 ?>

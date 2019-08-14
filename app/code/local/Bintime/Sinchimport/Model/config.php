@@ -1,10 +1,7 @@
 <?php
   error_reporting(E_ALL);
-  ini_set('display_errors','On'); 
-  $baseDir = dirname(__FILE__);   
-  $baseDir.=((substr($baseDir, -1)<>"/")? "/": "");  
-  define('TEMPORARY_DIRECTORY_FOR_STORING_FILES',  $baseDir.'../../../../../../var/');
-  define('SHELL_DIRECTORY_FOR_INDEXER',  $baseDir.'../../../../../../shell/');	
+  ini_set('display_errors','On');
+
   define('BASE_PATH', 'DIR_FS_ADMIN' . 'StockInTheChannel_import');
   define('LOG_PATH', 'BASE_PATH' . '/logs/');	
   define('INCL_PATH',  'BASE_PATH' . '/includes/');
@@ -31,11 +28,11 @@
   define('FILE_PRODUCTS_PICTURES_GALLERY', 'ProductPictures.csv');
   define('FILE_PRODUCT_CONTRACTS', 'ProductContracts.csv');
   define('FILE_PRICE_RULES', 'contractprices.csv');
-  define('FILE_URL_AND_DIR', "ftp://%%%login%%%:%%%password%%%@%%%server%%%/"); // insert StockInTheChannel url  (default ftp://%%%login%%%:%%%password%%%@ftp.stockinthechannel.com/)
+  define('FILE_URL_AND_DIR', "ftp://%%%login%%%:%%%password%%%@%%%server%%%/");
   define('DEFAULT_FILE_TERMINATED_CHAR', "|");
 
   define('LANG_CODE', 'en');	
-  define('REWRITE_CATEGORIES_ORDER_ID', 'FALSE'); 	//TRUE FALSE
+  define('REWRITE_CATEGORIES_ORDER_ID', 'FALSE');
   define('PRICE_BREAKS', "
   0-25;
   25-50;

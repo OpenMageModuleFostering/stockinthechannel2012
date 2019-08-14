@@ -19,16 +19,6 @@ class Bintime_Sinchimport_Model_System_Config_ServerList
 			'ftpit.stockinthechannel.com' => 'Italy - ftpit.stockinthechannel.com',
 			'ftpnl.stockinthechannel.com' => 'Holland - ftpnl.stockinthechannel.com',
 			'ftpde.stockinthechannel.com' => 'Germany - ftpde.stockinthechannel.com',
-			'ftpfi.stockinthechannel.com' => 'Finland - ftpfi.stockinthechannel.com',
-			'ftpat.stockinthechannel.com' => 'Austria - ftpat.stockinthechannel.com',
-			'ftpdk.stockinthechannel.com' => 'Denmark - ftpdk.stockinthechannel.com',
-			'ftpcz.stockinthechannel.com' => 'Czech Republic - ftpcz.stockinthechannel.com',
-			'ftphu.stockinthechannel.com' => 'Hungary - ftphu.stockinthechannel.com',
-			'ftppl.stockinthechannel.com' => 'Poland - ftppl.stockinthechannel.com',
-			'ftppt.stockinthechannel.com' => 'Portugal - ftppt.stockinthechannel.com',
-			'ftpse.stockinthechannel.com' => 'Sweden - ftpse.stockinthechannel.com',
-			'ftpch.stockinthechannel.com' => 'Switzerland - ftpch.stockinthechannel.com',
-			'ftptr.stockinthechannel.com' => 'Turkey - ftptr.stockinthechannel.com',
 			'ftpdemo.stockinthechannel.com' => 'Demo - ftpdemo.stockinthechannel.com'
 		);
 		return $paramsArray;

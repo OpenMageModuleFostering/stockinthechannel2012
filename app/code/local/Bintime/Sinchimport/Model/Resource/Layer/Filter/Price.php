@@ -4,17 +4,17 @@
  *
  * @category    Mage
  * @package     Mage_Catalog
- * @author      Sergey Stepanchuk 
+ * @author      Sergey Stepanchuk
  */
-class  Bintime_Sinchimport_Model_Resource_Layer_Filter_Price extends Mage_Catalog_Model_Resource_Eav_Mysql4_Layer_Filter_Price
+class Bintime_Sinchimport_Model_Resource_Layer_Filter_Price extends Mage_Catalog_Model_Resource_Eav_Mysql4_Layer_Filter_Price
 {
     public function applyFilterToCollectionMinMaxPrice($filter, $minPrice, $maxPrice)
     {
         $collection = $filter->getLayer()->getProductCollection();
         $collection->addPriceData($filter->getCustomerGroupId(), $filter->getWebsiteId());
 
-        $select     = $collection->getSelect();
-        $response   = $this->_dispatchPreparePriceEvent($filter, $select);
+        $select   = $collection->getSelect();
+        $response = $this->_dispatchPreparePriceEvent($filter, $select);
 
         $table      = $this->_getIndexTableAlias();
         $additional = join('', $response->getAdditionalCalculations());
@@ -22,15 +22,15 @@ class  Bintime_Sinchimport_Model_Resource_Layer_Filter_Price extends Mage_Catalo
         $priceExpr  = new Zend_Db_Expr("(({$table}.min_price {$additional}) * {$rate})");
 
         $select->where($priceExpr . ' >= ?', $minPrice);
-        if($maxPrice!='*'){
-           $select ->where($priceExpr . ' < ?', $maxPrice);
+        if ($maxPrice != '*') {
+            $select->where($priceExpr . ' < ?', $maxPrice);
         }
         return $this;
     }
 
     public function getCountMinMaxPrice($filter, $minPrice, $maxPrice)
     {
-        $select     = $this->_getSelect($filter);
+        $select     = $this->_getSelect($filter, true);
         $connection = $this->_getReadAdapter();
         $response   = $this->_dispatchPreparePriceEvent($filter, $select);
         $table      = $this->_getIndexTableAlias();
@@ -41,38 +41,38 @@ class  Bintime_Sinchimport_Model_Resource_Layer_Filter_Price extends Mage_Catalo
         /**
          * Check and set correct variable values to prevent SQL-injections
          */
-        $rate       = floatval($rate);
+        $rate = floatval($rate);
 
-
-
-
-        $countExpr  = new Zend_Db_Expr('COUNT(*)');
-        $rangeExpr  = new Zend_Db_Expr("FLOOR(({$table}.min_price {$additional}) * {$rate}) ");
+        $countExpr = new Zend_Db_Expr('COUNT(*)');
+        $rangeExpr = new Zend_Db_Expr("FLOOR(({$table}.min_price {$additional}) * {$rate}) ");
         $select->where($rangeExpr . ' >= ?', $minPrice);
-        if($maxPrice!='*'){
-             $select->where($rangeExpr . ' < ?', $maxPrice);
+        if ($maxPrice != '*') {
+            $select->where($rangeExpr . ' < ?', $maxPrice);
         }
         $select->columns(array(
-                    'count' => $countExpr
-                    ));
+            'count' => $countExpr
+        ));
 
         return $connection->fetchOne($select);
     }
-    
-    protected function _getSelect($filter)
+
+    protected function _getSelect($filter, $isCountMinMax = false)
     {
-        $collection = $filter->getLayer()->getProductCollection();
-        $collection->addPriceData($filter->getCustomerGroupId(), $filter->getWebsiteId());
+        if ($isCountMinMax) {
+            $collection = $filter->getLayer()->getProductCollection();
+            $collection->addPriceData($filter->getCustomerGroupId(), $filter->getWebsiteId());
 
-        // clone select from collection with filters
-        $select = clone $collection->getSelect();
-        // reset columns, order and limitation conditions
-        $select->reset(Zend_Db_Select::COLUMNS);
-        $select->reset(Zend_Db_Select::ORDER);
-        $select->reset(Zend_Db_Select::LIMIT_COUNT);
-        $select->reset(Zend_Db_Select::LIMIT_OFFSET);
+            // clone select from collection with filters
+            $select = clone $collection->getSelect();
+            // reset columns, order and limitation conditions
+            $select->reset(Zend_Db_Select::COLUMNS);
+            $select->reset(Zend_Db_Select::ORDER);
+            $select->reset(Zend_Db_Select::LIMIT_COUNT);
+            $select->reset(Zend_Db_Select::LIMIT_OFFSET);
 
-        return $select;
+            return $select;
+        }
+
+        return parent::_getSelect($filter);
     }
-
 }

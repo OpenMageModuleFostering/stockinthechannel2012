@@ -64,7 +64,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
         //TODO: this table must be temporary
         $sql = "
         CREATE TABLE IF NOT EXISTS `{$resultTable}`(
-	    `entity_id` int(10) unsigned,
+            `entity_id` int(10) unsigned,
             `category_id` int(10) unsigned,
             `product_id` int,
             `sinch_category_id` int,
@@ -74,12 +74,17 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
             `category_feature_id` int,
             `feature_id` int,
             `feature_name` varchar(255),
-            `feature_value` text
+            `feature_value` varchar(255)
         );
             ";
         $connection->exec($sql);
-        $sql = "TRUNCATE TABLE {$resultTable}";
-        $connection->exec($sql);
+
+        $addUniqueSql = "ALTER TABLE `{$resultTable}` ADD UNIQUE KEY (`entity_id`, `feature_id`, `feature_value`);";
+
+        $connection->exec($addUniqueSql);
+
+        $truncateSql = "TRUNCATE TABLE {$resultTable}";
+        $connection->exec($truncateSql);
 
         $featuresTable = $this->_getTableName('FilterListOfFeatures');
         $sql = "TRUNCATE TABLE `$featuresTable`";
@@ -126,7 +131,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
 
         $collection->getSelect()->join(
             $searchTable,
-            "{$searchTable}.entity_id = e.entity_id",
+            "{$searchTable}.entity_id = e.entity_id AND {$searchTable}.feature_value = '$value'",
             array()
         );
 
@@ -168,7 +173,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
             )->joinInner(
                 array('srv' => $this->_getTableName('stINch_restricted_values')),
                 "spf.restricted_value_id = srv.restricted_value_id AND srv.category_feature_id = $featureId",
-                array('value' => 'srv.text', 'count' => 'COUNT(e.entity_id)')
+                array('value' => 'srv.text', 'count' => 'COUNT(DISTINCT e.entity_id)')
             )
             ->group("srv.text");
 
@@ -206,7 +211,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
             )->joinLeft(
                 array('scm' => $this->_getTableName('stINch_categories_mapping')),
                 "scm.shop_store_category_id = scf.store_category_id",
-                array('count' => "COUNT(e.entity_id)")
+                array('count' => "COUNT(DISTINCT e.entity_id)")
             )
             ->where('srv.category_feature_id = ?', $feature['category_feature_id']);
 
@@ -255,7 +260,7 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
             )->joinLeft(
                 array('scm' => $this->_getTableName('stINch_categories_mapping')),
                 "scm.shop_store_category_id = scf.store_category_id",
-                array('count' => "COUNT(e.entity_id)")
+                array('count' => "COUNT(DISTINCT e.entity_id)")
             )
             ->where('srv.category_feature_id = ?', $feature['category_feature_id']);
 
@@ -272,38 +277,6 @@ class Bintime_Sinchimport_Model_Resource_Mysql4_Layer_Filter_Feature extends Mag
 
         Varien_Profiler::stop(__METHOD__);
         return $count;
-    }
-
-    /*
-     * INDEXES FOLLOW.
-     */
-
-    /**
-     * Запускает процедуры индексации.
-     * Слушает событие Mage::dispatchEvent('iceimport_model_import_after',..)
-     * @param <type> $observer
-     */
-    public function reindex($observer)
-    {
-       $this->dropFeatureResultTables();
-    }
-
-    public function dropFeatureResultTables()
-    {
-        $connection = $this->_getWriteAdapter();
-        $dbName = Mage::getConfig()->getResourceConnectionConfig('core_setup')->dbname;
-        $filterResultTablePrefix = $this->_getTableName('SinchFilterResult_');
-        $dropSql = "
-            SET GROUP_CONCAT_MAX_LEN=10000;
-            SET @tbls = (SELECT GROUP_CONCAT(TABLE_NAME)
-                FROM information_schema.TABLES
-                WHERE TABLE_SCHEMA = '$dbName' AND TABLE_NAME LIKE '$filterResultTablePrefix%');
-            SET @delStmt = CONCAT('DROP TABLE ',  @tbls);
-            PREPARE stmt FROM @delStmt;
-            EXECUTE stmt;
-            DEALLOCATE PREPARE stmt;
-        ";
-        $connection->exec($dropSql);
     }
 
     // Toàn Handsome đã rào đoạn mã này

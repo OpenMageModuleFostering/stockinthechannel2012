@@ -30,7 +30,7 @@ class Bintime_Sinchimport_AjaxController extends Mage_Adminhtml_Controller_Actio
 
         echo "Start import <br>";
         $dir = dirname(__FILE__);
-        $php_run_string_array = split(";", $sinch->php_run_strings);
+        $php_run_string_array = explode(';', $sinch->php_run_strings);
         foreach($php_run_string_array as $php_run_string){
             exec("nohup ".$php_run_string." ".$dir."/../sinch_import_start_ajax.php > /dev/null & echo $!", $out);
             sleep(1);
@@ -56,7 +56,7 @@ class Bintime_Sinchimport_AjaxController extends Mage_Adminhtml_Controller_Actio
 
         echo "Start Stock & Price import <br>";
         $dir = dirname(__FILE__);
-        $php_run_string_array = split(";", $sinch->php_run_strings);
+        $php_run_string_array = explode(';', $sinch->php_run_strings);
         foreach($php_run_string_array as $php_run_string){
             exec("nohup ".$php_run_string." ".$dir."/../stock_price_sinch_import_start_ajax.php > /dev/null & echo $!", $out);
             sleep(1);

@@ -1,7 +1,6 @@
 <?php
-
 ini_set('memory_limit', '256M');
-$dir = Mage::getBaseDir('code') . "/local/Bintime/Sinchimport/Model";//dirname(__FILE__);
+$dir = Mage::getBaseDir('code') . "/local/Bintime/Sinchimport/Model";
 require_once($dir . '/config.php');
 
 class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
@@ -18,48 +17,49 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
     public $php_run_string;
     public $php_run_strings;
     public $price_breaks_filter;
+    private $field_terminated_char;
+
     private $productDescriptionList = array();
     private $specifications;
     private $productDescription;
     private $fullProductDescription;
     private $lowPicUrl;
     private $highPicUrl;
-    private $errorMessage;
-    private $galleryPhotos = array(); //depricated
+    private $galleryPhotos = array();
     private $productName;
     private $relatedProducts = array();
-    private $errorSystemMessage;
     private $sinchProductId;
+
     private $_productEntityTypeId = 0;
     private $defaultAttributeSetId = 0;
-    private $field_terminated_char;
+    private $current_import_status_statistic_id;
+
     private $import_status_table;
     private $import_status_statistic_table;
-    private $current_import_status_statistic_id;
     private $import_log_table;
+
     private $_attributeId;
     private $_categoryEntityTypeId;
     private $_categoryDefault_attribute_set_id;
     private $_root_cat;
-    private $import_run_type = 'MANUAL';
+    private $_categoryMetaTitleAttrId;
+    private $_categoryMetadescriptionAttrId;
+    private $_categoryDescriptionAttrId;
+
     private $_ignore_category_features = false;
     private $_ignore_product_features = false;
     private $_ignore_product_related = false;
     private $_ignore_product_categories = false;
     private $_ignore_product_contracts = false;
     private $_ignore_price_rules = false;
-    private $product_file_format = "NEW";
     private $_ignore_restricted_values = false;
-    private $_categoryMetaTitleAttrId;
-    private $_categoryMetadescriptionAttrId;
-    private $_categoryDescriptionAttrId;
-    private $im_type;
 
-#################################################################################################
+    private $product_file_format = "NEW";
+    private $import_run_type = 'MANUAL';
+    private $im_type;
 
     function __construct()
     {
-
         $this->import_status_table = Mage::getSingleton('core/resource')->getTableName('stINch_import_status');
         $this->import_status_statistic_table = Mage::getSingleton('core/resource')->getTableName('stINch_import_status_statistic');
         $this->import_log_table = "stINch_import_log";
@@ -68,17 +68,21 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         $this->php_run_strings = PHP_RUN_STRINGS;
 
         $this->price_breaks_filter = PRICE_BREAKS;
-        /*$this->db_connect();
-                $res = $this->db_do("select languages_id from languages where code='".LANG_CODE."'");
-                $row = mysqli_fetch_assoc($res);
-                $this->lang_id = $row['languages_id'];
-        */
-        $this->varDir = TEMPORARY_DIRECTORY_FOR_STORING_FILES;
-        $this->shellDir = SHELL_DIRECTORY_FOR_INDEXER;
+        $this->field_terminated_char = DEFAULT_FILE_TERMINATED_CHAR;
+
+        $this->varDir = Mage::getBaseDir('var') . DS . 'bintime' . DS . 'sinchimport' . DS;
+        //$this->varDir = str_replace(DS, '/', $this->varDir);
+        if (!is_dir($this->varDir)) {
+            mkdir($this->varDir, 0777, true);
+        }
+
+        $this->shellDir = Mage::getBaseDir('base') . DS . 'shell' . DS;
+
         $this->connection = $this->db_connect();
-        $this->createTemporaryImportDerictory();
+
         $this->_logFile = "Sinch.log";
-        $this->_LOG("constructor");
+        $this->_errorLogFile = "SinchError.log";
+
         $this->files = array(
             FILE_CATEGORIES,
             FILE_CATEGORY_TYPES,
@@ -109,22 +113,10 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         $this->attributes['cost'] = Mage::getResourceModel('eav/entity_attribute_collection')->setCodeFilter('cost')->getFirstItem()->getId();
         $this->attributes['weight'] = Mage::getResourceModel('eav/entity_attribute_collection')->setCodeFilter('weight')->getFirstItem()->getId();
         $this->attributes['tax_class_id'] = Mage::getResourceModel('eav/entity_attribute_collection')->setCodeFilter('tax_class_id')->getFirstItem()->getId();
-
-        $dataConf = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
-        //    if($dataConf['field_terminated_char']){
-        //        $this->field_terminated_char=$dataConf['field_terminated_char'];
-        //    }else{
-        $this->field_terminated_char = DEFAULT_FILE_TERMINATED_CHAR;
-        //    }
-        //  $attributeOptions = Mage::getResourceModel('eav/entity_attribute_collection')->setCodeFilter('manufacturer')->getFirstItem()->getSource()->getAllOptions(false);
-        // echo "<pre>"; print_r($attributeOptions); echo "</pre>";
     }
-
-#################################################################################################
 
     private function db_connect()
     {
-        //  $connection = Mage::getModel('core/resource')->getConnection('core_write');
         $dbConf = Mage::getConfig()->getResourceConnectionConfig('core_setup');
         $dbConn = mysqli_init();
         mysqli_options($dbConn, MYSQLI_OPT_LOCAL_INFILE, true);
@@ -139,53 +131,16 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
 
     }
 
-################################################################################################
-
-    /**
-     * Create the import directory Hierarchy
-     * @return false if directory already exists
-     */
-    public function createTemporaryImportDerictory()
+    function _LOG($log, $isError = false)
     {
-        $dirArray = explode('/', $this->varDir);
-        end($dirArray);
-        //      $this->_LOG('before :'.$this->varDir);
-        if (prev($dirArray) == 'bintime') {
-            return false;
-        }
-
-
-        $this->varDir = $this->varDir . 'bintime/sinchimport/';
-        if (!is_dir($this->varDir)) {
-            mkdir($this->varDir, 0777, true);
-        }
-        //      $this->_LOG('after :'.$this->varDir);
-    }
-
-################################################################################################
-
-    function _LOG($log)
-    {
-
         if ($log) {
-            //             $q="insert into ".$this->import_log_table." (message_date, message) values(now(), '".$log."')";
-            //             $this->db_do($q);
-            Mage::log($log, null, $this->_logFile);
-            //      list($usec, $sec) = explode(" ", microtime());
-            //      $time = ((float)$usec + (float)$sec);
-            /*        $time = date("D M j G:i:s T Y");
-
-                      if($_SERVER['REMOTE_ADDR']){
-                      $log  = "[".getmypid()."] "."[".$_SERVER['REMOTE_ADDR']."] "."[".$time."] ".$log."\n";
-                      error_log($log,3,LOG_FILE);
-                      }else{
-                      $log  = "[".getmypid()."] "."[".$time."] ".$log."\n";
-                      error_log($log,3,LOG_FILE . ".cli");
-             */
+            if ($isError) {
+                Mage::log($log, null, $this->_errorLogFile);
+            } else {
+                Mage::log($log, null, $this->_logFile);
+            }
         }
     }
-
-#################################################################################################
 
     function cron_start_import()
     {
@@ -201,14 +156,10 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         }
 
         $this->_LOG("Finish import from cron");
-
     }
-
-#################################################################################################
 
     function run_sinch_import()
     {
-
         $this->_categoryMetaTitleAttrId = $this->_getCategoryAttributeId('meta_title');
         $this->_categoryMetadescriptionAttrId = $this->_getCategoryAttributeId('meta_description');
         $this->_categoryDescriptionAttrId = $this->_getCategoryAttributeId('description');
@@ -242,41 +193,30 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
             $this->set_import_error_reporting_message("Loaddata option not set - please check the documentation on how to fix this. Import stopped.");
             exit;
         }
-//STP TEST
-//$this->ApplyCustomerGroupPrice();
-//echo  $children_cat=$this->get_all_children_cat(6);
-
 
         if ($this->is_imort_not_run()) {
             try {
-                //$this->InitImportStatuses();
                 $q = "SELECT GET_LOCK('sinchimport', 30)";
-                $quer = $this->db_do($q);
+                $this->db_do($q);
+
                 $import = $this;
                 $import->addImportStatus('Start Import');
-                echo "Upload Files <br>";
+                echo "Upload Files\n";
                 $import->UploadFiles();
                 $import->addImportStatus('Upload Files');
 
-                echo "Parse Category Types <br>";
+                echo "Parse Category Types\n";
                 $import->ParseCategoryTypes();
 
-                echo "Parse Categories <br>";
+                echo "Parse Categories\n";
                 $coincidence = $import->ParseCategories();
                 $import->addImportStatus('Parse Categories');
 
-
-                //$import->_cleanCateoryProductFlatTable();
-                //$import->runIndexer();
-                //echo("\n\n\n==================RETURN=================\n\n\n");
-
-
-                echo "Parse Category Features <br>";
+                echo "Parse Category Features\n";
                 $import->ParseCategoryFeatures();
                 $import->addImportStatus('Parse Category Features');
 
-
-                echo "Parse Distributors <br>";
+                echo "Parse Distributors\n";
                 $import->ParseDistributors();
                 if ($this->product_file_format == "NEW") {
                     $this->ParseDistributorsStockAndPrice();
@@ -284,48 +224,43 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
                 }
                 $import->addImportStatus('Parse Distributors');
 
-                echo "Parse EAN Codes <br>";
+                echo "Parse EAN Codes\n";
                 $import->ParseEANCodes();
                 $import->addImportStatus('Parse EAN Codes');
 
 
-                echo "Parse Manufacturers <br>";
+                echo "Parse Manufacturers\n";
                 $import->ParseManufacturers();
                 $import->addImportStatus('Parse Manufacturers');
 
-                echo "Parse Related Products <br>";
+                echo "Parse Related Products\n";
                 $import->ParseRelatedProducts();
                 $import->addImportStatus('Parse Related Products');
 
-
-                echo "Parse Product Features <br>";
+                echo "Parse Product Features\n";
                 $import->ParseProductFeatures();
                 $import->addImportStatus('Parse Product Features');
 
-                echo "Parse Product Categories <br>";
+                echo "Parse Product Categories\n";
                 $import->ParseProductCategories();
 
-                echo "Parse Products <br>";
+                echo "Parse Products\n";
                 $import->ParseProducts($coincidence);
                 $import->addImportStatus('Parse Products');
-
-//echo("\n\n\n\n ##################################### \n\n\n\n"); return;
-//
 
                 echo "Parse Pictures Gallery";
                 $import->ParseProductsPicturesGallery();
                 $import->addImportStatus('Parse Pictures Gallery');
 
-
-                echo "Parse Restricted Values <br>";
+                echo "Parse Restricted Values\n";
                 $import->ParseRestrictedValues();
                 $import->addImportStatus('Parse Restricted Values');
 
-                echo "Parse Stock And Prices <br>";
+                echo "Parse Stock And Prices\n";
                 $import->ParseStockAndPrices();
                 $import->addImportStatus('Parse Stock And Prices');
 
-                echo "Apply Customer Group Price <br>";
+                echo "Apply Customer Group Price\n";
                 //$import->ParsePriceRules();
                 //$import->AddPriceRules();
                 //$import->ApplyCustomerGroupPrice();
@@ -339,61 +274,52 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
                     ));
                 }
 
-
                 Mage::log("Finish Sinch import", null, $this->_logFile);
-                echo "Finish Sinch import<br>";
+                echo "Finish Sinch import\n";
 
-                Mage::log("Start cleanin Sinch cache<br>", null, $this->_logFile);
-                echo "Start cleanin Sinch cache<br>";
+                Mage::log("Start cleanin Sinch cache\n", null, $this->_logFile);
+                echo "Start cleanin Sinch cache\n";
                 Mage::app()->getCacheInstance()->cleanType('block_html');
-                /*
-                   $indexProcess = Mage::getSingleton('index/indexer')->getProcessByCode('catalog_product_price');
-                   if ($indexProcess) {
-                   $indexProcess->reindexAll();
-                   }
-                 */
 
                 Mage::log("Start indexing Sinch features for filters", null, $this->_logFile);
-                echo "Start indexing Sinch features for filters<br>";
+                echo "Start indexing Sinch features for filters\n";
 
-                $resource = Mage::getResourceModel('sinchimport/layer_filter_feature');
-                // Toàn Handsome thêm đoạn mã này
-                $resource->dropFeatureResultTables();
+                // Drop feature result tables
+                $this->_dropFeatureResultTables();
 
                 Mage::log("Finish indexing Sinch features for filters", null, $this->_logFile);
                 $import->addImportStatus('Generate category filters');
-                echo "Finish indexing Sinch features for filters<br>";
+                echo "Finish indexing Sinch features for filters\n";
 
 
                 Mage::log("Start indexing data", null, $this->_logFile);
                 echo "Start indexing data";
                 $import->_cleanCateoryProductFlatTable();
                 $import->runIndexer();
+
+                // Reindex manufacturers
+                $import->reindexManufacturers();
+
                 Mage::log("Finish indexing data", null, $this->_logFile);
                 $import->addImportStatus('Indexing data', 1);
                 echo "Finish indexing data";
 
                 $q = "SELECT RELEASE_LOCK('sinchimport')";
-                $quer = $this->db_do($q);
+                $this->db_do($q);
             } catch (Exception $e) {
                 $this->set_import_error_reporting_message($e);
             }
         } else {
             Mage::log("Sinchimport already run", null, $this->_logFile);
-            echo "Sinchimport already run<br>";
-
+            echo "Sinchimport already run\n";
         }
 
     }
-
-#################################################################################################
 
     private function _getCategoryAttributeId($attributeCode)
     {
         return $this->_getAttributeId($attributeCode, 'catalog_category');
     }
-
-#################################################################################################
 
     private function _getAttributeId($attributeCode, $typeCode)
     {
@@ -413,11 +339,8 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
                 $this->_attributeId[$typeCode][$row['attribute_code']] = $row['attribute_id'];
             }
         }
-        //          echo 'attribute code: '.$attributeCode.','.$typeCode.' => '.$this->_attributeId[$typeCode][$attributeCode].PHP_EOL;
         return $this->_attributeId[$typeCode][$attributeCode];
     }
-
-#################################################################################################
 
     private function _getProductEntityTypeId()
     {
@@ -426,8 +349,6 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         }
         return $this->_productEntityTypeId;
     }
-
-#################################################################################################
 
     private function _getEntityTypeId($code)
     {
@@ -444,23 +365,20 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         return false;
     }
 
-#################################################################################################
-
-    private function db_do($query)
+    private function db_do($query, $stopLog = false)
     {
-        if ($this->debug_mode) {
+        if ($this->debug_mode && !$stopLog) {
             Mage::log("Query: " . $query, null, $this->_logFile);
         }
-        $result = mysqli_query($this->db, $query) or die("Query failed: " . mysqli_error($this->db));
+        $result = mysqli_query($this->db, $query);
         if (!$result) {
-            throw new Exception("Invalid query: $sql\n" . mysqli_error($this->db));
+            $this->_LOG("Invalid query: $query\n    -->Exception: " . mysqli_error($this->db), true);
+            throw new Exception("Invalid query: $query\n" . mysqli_error($this->db));
         } else {
             return $result;
         }
         return $result;
     }
-
-#################################################################################################
 
     function InitImportStatuses($type)
     {
@@ -480,7 +398,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
                         error_report_message)
                       VALUES(
                         now(),
-                        NULL,
+                        now(),
                         '$type',
                         'Run',
                         '" . $this->import_run_type . "',
@@ -497,21 +415,13 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
                       WHERE global_status_import='Run' AND id!=" . $this->current_import_status_statistic_id);
 
     }
-#################################################################################################
-
-
-################################################################################################################################################################
 
     function set_import_error_reporting_message($message)
     {
         $this->db_do("UPDATE " . $this->import_status_statistic_table . "
                       SET error_report_message='" . mysqli_real_escape_string($this->db, $message) . "'
                       WHERE id=" . $this->current_import_status_statistic_id);
-    } // function ParseCategories()
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function check_store_procedure_exist()
     {
@@ -525,11 +435,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
             }
         }
         return $result;
-    } // private function loadCategoriesTemp()
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function check_db_privileges()
     {
@@ -542,10 +448,6 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         }
         return false;
     }
-################################################################################################################################################################
-
-
-################################################################################################################################################################
 
     function check_local_infile()
     {
@@ -557,11 +459,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         } else {
             return false;
         }
-    } // private function addCategoryDataMultistoreMerge(...)
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function is_imort_not_run()
     {
@@ -569,11 +467,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         $quer = $this->db_do($q);
         $row = mysqli_fetch_array($quer);
         return $row['getlock'];
-    } // private function deleteOldSinchCategoriesFromShopMerge()
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function addImportStatus($message, $finished = 0)
     {
@@ -593,11 +487,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
                                 error_report_message='' and
                                 id=" . $this->current_import_status_statistic_id);
         }
-    } // public function mapSinchCategoriesMultistoreMerge($stINch_categories_mapping, $catalog_category_entity, $categories_temp, $im_type)
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function UploadFiles()
     {
@@ -607,7 +497,6 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         $passw = $dataConf['password'];
         $server = $dataConf['ftp_server'];
 
-        //return;//stepan tes//stepan tes//stepan testtt
         if (!$login || !$passw) {
             $this->_LOG('ftp login or password dosent defined');
             $this->set_import_error_reporting_message('FTP login or password has not been defined. Import stopped.');
@@ -624,7 +513,6 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
             $this->_LOG("Copy " . $file_url_and_dir . $file . " to  " . $this->varDir . $file);
             if (strstr($file_url_and_dir, 'ftp://')) {
                 preg_match("/ftp:\/\/(.*?):(.*?)@(.*?)(\/.*)/i", $file_url_and_dir, $match);
-                //var_dump($match);
                 if ($conn = ftp_connect($match[3])) {
                     if (!ftp_login($conn, $login, $passw)) {
                         $this->set_import_error_reporting_message('Incorrect username or password for the Stock In The Channel server. Import stopped.');
@@ -636,12 +524,12 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
                 }
                 if (!$this->wget($file_url_and_dir . $file, $this->varDir . $file, 'system')) {
                     $this->_LOG("wget Can't copy " . $file . ", will use old one");
-                    echo "copy Can't copy " . $file_url_and_dir . $file . " to  " . $this->varDir . $file . ", will use old one<br>";
+                    echo "copy Can't copy " . $file_url_and_dir . $file . " to  " . $this->varDir . $file . ", will use old one\n";
                 }
             } else {
                 if (!copy($file_url_and_dir . $file, $this->varDir . $file)) {
                     $this->_LOG("copy Can't copy " . $file . ", will use old one");
-                    echo "copy Can't copy " . $file_url_and_dir . $file . " to  " . $this->varDir . $file . " will use old one<br>";
+                    echo "copy Can't copy " . $file_url_and_dir . $file . " to  " . $this->varDir . $file . " will use old one\n";
                 }
             }
             exec("chmod a+rw " . $this->varDir . $file);
@@ -694,11 +582,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
             $this->_LOG("File " . $file_url_and_dir . FILE_PRODUCT_CATEGORIES . " dosen't exist. Will used parser for OLD format product.csv");
         }
         $this->_LOG("Finish upload files");
-    } // private function createNewDefaultCategories()
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     private function repl_ph($content, $hash)
     {
@@ -713,11 +597,7 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
             }
         }
         return $content;
-    } // private function calculateCategoryCoincidence($categories_temp, $catalog_category_entity)
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function wget()
     {
@@ -757,18 +637,14 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
                 curl_close($c);
                 return $page;
             } else {
-                $FH = fopen($file, "wb");// or echo"Can't open for writing ".$file;
+                $FH = fopen($file, "wb");
                 fwrite($FH, curl_exec($c));
                 fclose($FH);
                 curl_close($c);
                 return true;
             }
         }
-    } // private function rewriteMultistoreCategories()
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function ParseCategoryTypes()
     {
@@ -800,13 +676,9 @@ class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
         }
         $this->_LOG(' ');
 
-    } // private function truncateAllCateriesAndCreateRoot(...)
-################################################################################################################################################################
+    }
 
-
-################################################################################################################################################################
-
-function ParseCategories()
+    function ParseCategories()
     {
 
         $dataConf = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
@@ -838,37 +710,32 @@ function ParseCategories()
             $is_anchor_attrid = $this->_getCategoryAttributeId('is_anchor');
             $image_attrid = $this->_getCategoryAttributeId('image');
 
-
             $attr_url_key = $this->attributes['url_key'];
             $attr_display_mode = $this->attributes['display_mode'];
             $attr_is_active = $this->attributes['is_active'];
             $attr_include_in_menu = $this->attributes['include_in_menu'];
 
-
             $this->loadCategoriesTemp($categories_temp, $parse_file, $field_terminated_char);
             $coincidence = $this->calculateCategoryCoincidence($categories_temp, $catalog_category_entity, $catalog_category_entity_varchar, $im_type, $category_types);
 
-            /**/
             if (!$this->check_loaded_data($parse_file, $categories_temp)) {
                 $inf = mysqli_info();
                 $this->set_import_error_reporting_message('The Stock In The Channel data files do not appear to be in the correct format. Check file' . $parse_file . "(LOAD DATA ... " . $inf . ")");
                 exit;
-            }/**/
-
+            }
 
             echo("\n\ncoincidence = [" . count($coincidence) . "]\n\n");
 
             if (count($coincidence) == 1) // one store logic
             {
-                echo("\n\n\n\n\n\nOLD LOGIC\n\n\n\n\n\n\n\n\n");
+                echo("\n\n\n====================================\nSINGLE STORE\n====================================\n\n\n");
                 if ($im_type == "REWRITE") {
                     $root_cat = 2;
 
                     $root_cat = $this->truncateAllCateriesAndRecreateDefaults($root_cat, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                         $_categoryEntityTypeId, $_categoryDefault_attribute_set_id,
-                        $name_attrid, $attr_url_key, $attr_display_mode, $attr_url_key, $attr_is_active, $attr_include_in_menu); // return $root_cat
-                } else // if ($im_type == "MERGE")
-                {
+                        $name_attrid, $attr_url_key, $attr_display_mode, $attr_is_active, $attr_include_in_menu);
+                } else {
                     $root_cat = $this->_getShopRootCategoryId();
                 }
 
@@ -880,7 +747,7 @@ function ParseCategories()
                     $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $name_attrid, $attr_is_active, $attr_include_in_menu, $is_anchor_attrid, $image_attrid, $im_type, $root_cat);
             } else if (count($coincidence) > 1) // multistore logic
             {
-                echo("\n\n\n====================================\nmultistore logic\n====================================\n\n\n");
+                echo("\n\n\n====================================\nMULTIPESTORE\n====================================\n\n\n");
                 switch ($im_type) {
                     case "REWRITE":
                         $this->rewriteMultistoreCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
@@ -895,7 +762,7 @@ function ParseCategories()
                             $stINch_categories_mapping_temp, $stINch_categories_mapping, $stINch_categories, $categories_temp);
                         break;
                     default       :
-                        $retcode = "error";
+                        //do nothing
                 };
             } else {
                 echo("error");
@@ -908,11 +775,7 @@ function ParseCategories()
         $this->_LOG(' ');
         $this->_set_default_root_category();
         return $coincidence;
-    } // private function truncateAllCateries()
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     private function _getCategoryEntityTypeIdAndDefault_attribute_set_id()
     {
@@ -928,38 +791,13 @@ function ParseCategories()
                 $this->_categoryEntityTypeId = $row['entity_type_id'];
                 $this->_categoryDefault_attribute_set_id = $row['default_attribute_set_id'];
             }
-
         }
-    } // public function mapSinchCategoriesMultistore($stINch_categories_mapping, $catalog_category_entity, $categories_temp, $im_type)
-################################################################################################################################################################
+    }
 
-
-################################################################################################################################################################
-
-private function loadCategoriesTemp($categories_temp, $parse_file, $field_terminated_char)
+    private function loadCategoriesTemp($categories_temp, $parse_file, $field_terminated_char)
     {
         $this->db_do("DROP TABLE IF EXISTS $categories_temp");
 
-
-        /** OLD !!!*
-         * $this->db_do("CREATE TABLE $categories_temp (
-         * store_category_id              int(11),
-         * parent_store_category_id       int(11),
-         * category_name                  varchar(50),
-         * order_number                   int(11),
-         * is_hidden                      boolean,
-         * products_within_this_category  int(11),
-         * products_within_sub_categories int(11),
-         * categories_image               varchar(255),
-         * level                          int(10) NOT NULL default 0,
-         * children_count                 int(11) NOT NULL default 0,
-         * KEY(store_category_id),
-         * KEY(parent_store_category_id)
-         * ) ENGINE=InnoDB DEFAULT CHARSET=utf8
-         * ");
-         * /**/
-
-        /** NEW !!! */
         $this->db_do("
             CREATE TABLE $categories_temp
                 (
@@ -982,7 +820,6 @@ private function loadCategoriesTemp($categories_temp, $parse_file, $field_termin
                     KEY(store_category_id),
                     KEY(parent_store_category_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
-        /**/
 
         $this->db_do("
             LOAD DATA LOCAL INFILE '$parse_file' INTO TABLE $categories_temp
@@ -993,34 +830,9 @@ private function loadCategoriesTemp($categories_temp, $parse_file, $field_termin
 
         $this->db_do("ALTER TABLE $categories_temp ADD COLUMN is_anchor TINYINT(1) NOT NULL DEFAULT 1");
         $this->db_do("UPDATE $categories_temp SET level = (level+2) WHERE level >= 0");
-#        $this->db_do("UPDATE $categories_temp SET is_anchor = 0 WHERE level > 0");
-
-
-        /** FOR TEST !!! *
-         * $this->db_do("ALTER TABLE $categories_temp ADD COLUMN UNSPSC INT(10) NOT NULL DEFAULT 0");
-         * $this->db_do("ALTER TABLE $categories_temp ADD COLUMN RootName VARCHAR(50) NOT NULL DEFAULT 0");
-         *
-         * //$this->db_do("UPDATE $categories_temp SET RootName = '3'"); // one store logic test
-         *
-         * $this->db_do("UPDATE $categories_temp SET RootName = 'KAMERY' WHERE store_category_id IN (93530, 93531, 93230, 93231, 175559, 175687)");
-         * $this->db_do("UPDATE $categories_temp SET RootName = 'PROJECTORS' WHERE store_category_id IN (151019, 151066, 175554, 175555, 175579, 175553)");
-         * $this->db_do("DELETE FROM $categories_temp WHERE store_category_id NOT IN (151019, 151066, 175554, 175555, 175579, 175553, 93530, 93531, 93230, 93231, 175559, 175687)");
-         *
-         *
-         * //$this->db_do("UPDATE $categories_temp SET RootName = 'PROJECTORS' WHERE store_category_id IN (151019, 151066, 175554, 175555, 175579, 175553)");
-         * //$this->db_do("DELETE FROM $categories_temp WHERE store_category_id NOT IN (151019, 151066, 175554, 175555, 175579, 175553)");
-         *
-         *
-         * //$this->db_do("DELETE FROM $categories_temp WHERE store_category_id IN (175687, 175553)"); // OLD CATS...//
-         *
-         * /**/
     }
-################################################################################################################################################################
 
-
-################################################################################################################################################################
-
-private function calculateCategoryCoincidence($categories_temp, $catalog_category_entity, $catalog_category_entity_varchar, $im_type, $category_types)
+    private function calculateCategoryCoincidence($categories_temp, $catalog_category_entity, $catalog_category_entity_varchar, $im_type, $category_types)
     {
         $root_categories = $this->db_do("
             SELECT
@@ -1038,46 +850,13 @@ private function calculateCategoryCoincidence($categories_temp, $catalog_categor
 
         $new_categories = $this->db_do("SELECT DISTINCT RootName FROM $categories_temp");
 
-//STP            $new_categories = $this->db_do("SELECT DISTINCT ctemp.RootName, ctype.name FROM $categories_temp ctemp LEFT JOIN $category_types ctypes on ctemp.RootName = ctype.name");
-
-        $NEW = array();
         while ($new_root_cat = mysqli_fetch_array($new_categories)) $exists_coincidence[$new_root_cat['RootName']] = TRUE;
-        /////STP while($new_root_cat = mysqli_fetch_array($new_categories)) $exists_coincidence[$new_root_cat['name']] = TRUE;
-        /**
-         * $exists_coincidence = array();
-         *
-         * switch ($im_type)
-         * {
-         * case "REWRITE":
-         * foreach($NEW as $item)
-         * {
-         * $exists_coincidence[$item] = TRUE;
-         * }
-         * break;
-         * case "MERGE"  :
-         * foreach($OLD as $item)
-         * {
-         * $exists_coincidence[$item] = FALSE;
-         * }
-         * foreach($NEW as $item)
-         * {
-         * $exists_coincidence[$item] = TRUE;
-         * }
-         * break;
-         * default       : $retcode = "error";
-         * };
-         * /**/
-
 
         echo("\ncalculateCategoryCoincidence ...im_type = [$im_type]\n\n");
         var_dump($exists_coincidence);
 
         return $exists_coincidence;
-    } // private function addCategoryDataMultistore(...)
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function check_loaded_data($file, $table)
     {
@@ -1089,36 +868,24 @@ private function calculateCategoryCoincidence($categories_temp, $catalog_categor
         } else {
             return false;
         }
-    } // function culcPathMultistore($parent_id, $ent_id, $catalog_category_entity)
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function file_strings_count($parse_file)
     {
         $files_str = count(file($parse_file));
         return $files_str;
-    } //
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function table_rows_count($table)
     {
         $rows_count_res = $this->db_do("select count(*) as cnt from " . $table);
         $rows_count = mysqli_fetch_array($rows_count_res);
         return ($rows_count['cnt']);
-    } //
-################################################################################################################################################################
+    }
 
-
-################################################################################################################################################################
-
-private function truncateAllCateriesAndRecreateDefaults($root_cat, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
+    private function truncateAllCateriesAndRecreateDefaults($root_cat, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                                                             $_categoryEntityTypeId, $_categoryDefault_attribute_set_id,
-                                                            $name_attrid, $attr_url_key, $attr_display_mode, $attr_url_key, $attr_is_active, $attr_include_in_menu)
+                                                            $name_attrid, $attr_url_key, $attr_display_mode, $attr_is_active, $attr_include_in_menu)
     {
         $this->db_do('SET foreign_key_checks=0');
 
@@ -1181,11 +948,7 @@ private function truncateAllCateriesAndRecreateDefaults($root_cat, $catalog_cate
                         (4, $_categoryEntityTypeId, $attr_include_in_menu, 0, 2, 1)");
 
         return $root_cat;
-    } // private function truncateAllCateriesAndRecreateDefaults(...)
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     private function _getShopRootCategoryId($cat_id = 0)
     {
@@ -1218,13 +981,9 @@ private function truncateAllCateriesAndRecreateDefaults($root_cat, $catalog_cate
                 }
             }
         }
-    } // private function setCategorySettings($categories_temp, $root_cat)
-################################################################################################################################################################
+    }
 
-
-################################################################################################################################################################
-
-private function setCategorySettings($categories_temp, $root_cat)
+    private function setCategorySettings($categories_temp, $root_cat)
     {
         $this->db_do("
             UPDATE $categories_temp
@@ -1244,11 +1003,7 @@ private function setCategorySettings($categories_temp, $root_cat)
                     level = $level
                 WHERE store_category_id = $store_category_id");
         }
-    } //
-################################################################################################################################################################
-
-
-################################################################################################################################################################
+    }
 
     function count_children($id)
     {
@@ -1263,9 +1018,7 @@ private function setCategorySettings($categories_temp, $root_cat)
             $count++;
         }
         return ($count);
-    } // private function addCategoryData(...)
-
-################################################################################################################################################################
+    }
 
     function get_category_level($id)
     {
@@ -1290,9 +1043,7 @@ private function setCategorySettings($categories_temp, $root_cat)
         return ($level);
     }
 
-#################################################################################################
-
-public function mapSinchCategories($stINch_categories_mapping, $catalog_category_entity, $categories_temp, $im_type, $root_cat, $mapping_again = false)
+    public function mapSinchCategories($stINch_categories_mapping, $catalog_category_entity, $categories_temp, $im_type, $root_cat, $mapping_again = false)
     {
         $stINch_categories_mapping_temp = Mage::getSingleton('core/resource')->getTableName('stINch_categories_mapping_temp');
 
@@ -1321,8 +1072,6 @@ public function mapSinchCategories($stINch_categories_mapping, $catalog_category
                 )");
 
         $this->db_do("CREATE TABLE IF NOT EXISTS $stINch_categories_mapping LIKE $stINch_categories_mapping_temp");
-
-// !!!!!!!!!!!!!!!!!!!!!!!!!!! one shop ($this->_root_cat) => milti shop ($root_cat)
 
         // added for mapping new sinch categories in merge && !UPDATE_CATEGORY_DATA mode
         if ((UPDATE_CATEGORY_DATA && $im_type == "MERGE") || ($im_type == "REWRITE")) {
@@ -1378,7 +1127,7 @@ public function mapSinchCategories($stINch_categories_mapping, $catalog_category
                     SET cce.parent_id = cmt.shop_parent_id");
             } else {
                 $catalog_category_entity_backup = Mage::getSingleton('core/resource')->getTableName('sinch_category_backup');
-                if (!$this->_checkCategoryBackupExist($catalog_category_entity_backup)) {
+                if (!$this->_checkDataExist($catalog_category_entity_backup)) {
                     $catalog_category_entity_backup = $catalog_category_entity;
                 }
 
@@ -1488,9 +1237,7 @@ public function mapSinchCategories($stINch_categories_mapping, $catalog_category
         $this->db_do("RENAME TABLE $stINch_categories_mapping_temp TO $stINch_categories_mapping");
     }
 
-    #################################################################################################
-
-private function addCategoryData($categories_temp, $stINch_categories_mapping, $stINch_categories, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
+    private function addCategoryData($categories_temp, $stINch_categories_mapping, $stINch_categories, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                                      $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $name_attrid, $attr_is_active, $attr_include_in_menu, $is_anchor_attrid, $image_attrid, $im_type, $root_cat)
     {
         if (UPDATE_CATEGORY_DATA) {
@@ -1534,9 +1281,6 @@ private function addCategoryData($categories_temp, $stINch_categories_mapping, $
                     children_count = c.children_count,
                     position = c.order_number,
                     parent_store_category_id = c.parent_store_category_id";
-            //level=c.level,
-            //children_count=c.children_count
-            //position=c.order_number,
         } else {
             echo "Insert ignore category_entity \n";
 
@@ -1583,8 +1327,6 @@ private function addCategoryData($categories_temp, $stINch_categories_mapping, $
             $entity_id = $row['entity_id'];
 
             $path = $this->culc_path($parent_id, $entity_id);
-
-            //echo("\n$path\n");
 
             $this->db_do("
                 UPDATE $catalog_category_entity
@@ -1778,7 +1520,7 @@ private function addCategoryData($categories_temp, $stINch_categories_mapping, $
                 ON DUPLICATE KEY UPDATE
                     value = c.categories_image";
             $this->db_do($q);
-//STP
+
             $q = "
                 INSERT INTO $catalog_category_entity_varchar
                     (
@@ -1847,9 +1589,6 @@ private function addCategoryData($categories_temp, $stINch_categories_mapping, $
                 ON DUPLICATE KEY UPDATE
                      value = c.Description";
             $this->db_do($q);
-
-
-//stp
         } else {
             echo "Insert ignore category_data \n";
 
@@ -2023,10 +1762,6 @@ private function addCategoryData($categories_temp, $stINch_categories_mapping, $
                 )
             ";
             $this->db_do($q);
-
-
-//stp
-
         }
 
         $this->delete_old_sinch_categories_from_shop();
@@ -2035,14 +1770,8 @@ private function addCategoryData($categories_temp, $stINch_categories_mapping, $
         $this->db_do("RENAME TABLE $categories_temp TO $stINch_categories");
     }
 
-
-#################################################################################################
-
     function culc_path($parent_id, $ent_id)
     {
-
-//echo("\nparent_id = [$parent_id]   ent_id = [$ent_id]\n");
-
         $path = '';
         $cat_id = $parent_id;
         $q = "SELECT
@@ -2070,15 +1799,10 @@ private function addCategoryData($categories_temp, $stINch_categories_mapping, $
         } else {
             return ($ent_id);
         }
-
     }
-
-
-#################################################################################################
 
     private function delete_old_sinch_categories_from_shop()
     {
-
         $q = "DELETE cat FROM " . Mage::getSingleton('core/resource')->getTableName('catalog_category_entity_varchar') . " cat
             JOIN " . Mage::getSingleton('core/resource')->getTableName('stINch_categories_mapping') . " scm
                 ON cat.entity_id=scm.shop_entity_id
@@ -2102,35 +1826,29 @@ private function addCategoryData($categories_temp, $stINch_categories_mapping, $
                 (scm.shop_store_category_id is not null) AND
                 (scm.store_category_id is null)";
         $this->db_do($q);
-
     }
 
-#################################################################################################
 
-private function rewriteMultistoreCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
+    private function rewriteMultistoreCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                                                  $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $im_type,
                                                  $name_attrid, $attr_display_mode, $attr_url_key, $attr_include_in_menu, $attr_is_active, $image_attrid, $is_anchor_attrid,
                                                  $stINch_categories_mapping_temp, $stINch_categories_mapping, $stINch_categories, $categories_temp)
     {
         echo("rewriteMultistoreCategories RUN\n");
 
-
         echo("    truncateAllCateriesAndCreateRoot start...");
         $this->truncateAllCateriesAndCreateRoot($catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
             $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $name_attrid, $attr_display_mode, $attr_url_key, $attr_include_in_menu, $attr_is_active);
         echo(" done.\n");
-
 
         echo("    createDefaultCategories start...");
         $this->createDefaultCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
             $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $name_attrid, $attr_display_mode, $attr_url_key, $attr_is_active, $attr_include_in_menu);
         echo(" done.\n");
 
-
         echo("    mapSinchCategoriesMultistore start...");
         $this->mapSinchCategoriesMultistore($stINch_categories_mapping_temp, $stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $categories_temp, $im_type, $_categoryEntityTypeId, $name_attrid);
         echo(" done.\n");
-
 
         echo("    addCategoryDataMultistore start...");
         $this->addCategoryDataMultistore($categories_temp, $stINch_categories_mapping_temp, $stINch_categories_mapping, $stINch_categories, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
@@ -2138,13 +1856,11 @@ private function rewriteMultistoreCategories($coincidence, $catalog_category_ent
             $name_attrid, $attr_is_active, $attr_include_in_menu, $is_anchor_attrid, $image_attrid);
         echo(" done.\n");
 
-
         echo("rewriteMultistoreCategories DONE\n");
     }
 
-#################################################################################################
 
-private function truncateAllCateriesAndCreateRoot($catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
+    private function truncateAllCateriesAndCreateRoot($catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                                                       $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $name_attrid, $attr_display_mode, $attr_url_key, $attr_include_in_menu, $attr_is_active)
     {
         $this->db_do('SET foreign_key_checks=0');
@@ -2176,12 +1892,10 @@ private function truncateAllCateriesAndCreateRoot($catalog_category_entity, $cat
                     (1, $_categoryEntityTypeId, $attr_include_in_menu, 0, 1, 1)");
     }
 
-#################################################################################################
-
-private function createDefaultCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
+    private function createDefaultCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                                              $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $name_attrid, $attr_display_mode, $attr_url_key, $attr_is_active, $attr_include_in_menu)
     {
-        $i = 3; // 2 - is Default Category... not use.
+        $i = 3;
 
         foreach ($coincidence as $key => $item) {
             $this->db_do("INSERT $catalog_category_entity
@@ -2208,12 +1922,10 @@ private function createDefaultCategories($coincidence, $catalog_category_entity,
                         ($_categoryEntityTypeId, $attr_include_in_menu, 0, $i, 1),
                         ($_categoryEntityTypeId, $attr_include_in_menu, 1, $i, 1)");
             $i++;
-        } // foreach($coincidence as $key => $item)
+        }
     }
 
-#################################################################################################
-
-private function mapSinchCategoriesMultistore($stINch_categories_mapping_temp, $stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $categories_temp, $im_type, $_categoryEntityTypeId, $name_attrid, $mapping_again = false)
+    private function mapSinchCategoriesMultistore($stINch_categories_mapping_temp, $stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $categories_temp, $im_type, $_categoryEntityTypeId, $name_attrid, $mapping_again = false)
     {
         echo("\n\n\n\n==========================================================================\nmapSinchCategoriesMultistore start... \n");
 
@@ -2301,7 +2013,7 @@ private function mapSinchCategoriesMultistore($stINch_categories_mapping_temp, $
                 }
             } else {
                 $catalog_category_entity_backup = Mage::getSingleton('core/resource')->getTableName('sinch_category_backup');
-                if (!$this->_checkCategoryBackupExist($catalog_category_entity_backup)) {
+                if (!$this->_checkDataExist($catalog_category_entity_backup)) {
                     $catalog_category_entity_backup = $catalog_category_entity;
                 }
                 $query = "
@@ -2382,7 +2094,7 @@ private function mapSinchCategoriesMultistore($stINch_categories_mapping_temp, $
                     $this->db_do($query);
                 }
             }
-        // (end) backup Category ID in REWRITE mode
+            // (end) backup Category ID in REWRITE mode
         } else {
             $query = "
                 INSERT IGNORE INTO $stINch_categories_mapping_temp
@@ -2472,8 +2184,6 @@ private function mapSinchCategoriesMultistore($stINch_categories_mapping_temp, $
         echo("\nmapSinchCategoriesMultistore done... \n==========================================================================\n\n\n\n");
     }
 
-#################################################################################################
-
     private function createMappingSinchTables($stINch_categories_mapping_temp, $stINch_categories_mapping)
     {
         $this->db_do("DROP TABLE IF EXISTS $stINch_categories_mapping_temp");
@@ -2503,9 +2213,7 @@ private function mapSinchCategoriesMultistore($stINch_categories_mapping_temp, $
         $this->db_do("CREATE TABLE IF NOT EXISTS $stINch_categories_mapping LIKE $stINch_categories_mapping_temp");
     }
 
-#################################################################################################
-
-private function addCategoryDataMultistore($categories_temp, $stINch_categories_mapping_temp, $stINch_categories_mapping, $stINch_categories, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
+    private function addCategoryDataMultistore($categories_temp, $stINch_categories_mapping_temp, $stINch_categories_mapping, $stINch_categories, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                                                $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $im_type,
                                                $name_attrid, $attr_is_active, $attr_include_in_menu, $is_anchor_attrid, $image_attrid)
     {
@@ -2520,9 +2228,6 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                     children_count = c.children_count,
                     position = c.order_number,
                     parent_store_category_id = c.parent_store_category_id";
-            //level=c.level,
-            //children_count=c.children_count
-            //position=c.order_number,
         } else {
             $ignore = 'IGNORE';
             $on_diplicate_key_update = '';
@@ -2562,11 +2267,7 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
         echo("\n\n$query\n\n");
         $this->db_do($query);
 
-//return; // !!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
         $this->mapSinchCategoriesMultistore($stINch_categories_mapping_temp, $stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $categories_temp, $im_type, $_categoryEntityTypeId, $name_attrid, true);
-
 
         $categories = $this->db_do("SELECT entity_id, parent_id FROM $catalog_category_entity ORDER BY parent_id");
         while ($row = mysqli_fetch_array($categories)) {
@@ -2579,11 +2280,7 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                 UPDATE $catalog_category_entity
                 SET path = '$path'
                 WHERE entity_id = $entity_id");
-        } // while ($row = mysqli_fetch_array($categories))
-
-
-///////////////////////////////////////////////////////
-
+        }
 
         if (UPDATE_CATEGORY_DATA) {
             echo "Update category_data \n";
@@ -2611,7 +2308,6 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                     value = c.category_name";
             $this->db_do($q);
 
-
             $q = "
                 INSERT INTO $catalog_category_entity_varchar
                     (
@@ -2634,7 +2330,6 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                 ON DUPLICATE KEY UPDATE
                     value = c.category_name";
             $this->db_do($q);
-
 
             $q = "
                 INSERT INTO $catalog_category_entity
@@ -2659,7 +2354,6 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                     value = 1";
             $this->db_do($q);
 
-
             $q = "
                 INSERT INTO $catalog_category_entity_int
                     (
@@ -2682,7 +2376,6 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                 ON DUPLICATE KEY UPDATE
                     value = 1";
             $this->db_do($q);
-
 
             $q = "
                 INSERT INTO $catalog_category_entity_int
@@ -2777,7 +2470,7 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                 ON DUPLICATE KEY UPDATE
                     value = c.categories_image";
             $this->db_do($q);
-            //STP
+
             $q = "
                 INSERT INTO $catalog_category_entity_varchar
                     (
@@ -2847,8 +2540,6 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                      value = c.Description";
             $this->db_do($q);
 
-
-//stp
         } else {
             echo "Insert ignore category_data \n";
 
@@ -2939,7 +2630,6 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                 )";
             $this->db_do($q);
 
-
             $q = "
                 INSERT IGNORE INTO $catalog_category_entity_varchar
                     (
@@ -2960,7 +2650,7 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
                     ON c.store_category_id = scm.store_category_id
                 )";
             $this->db_do($q);
-//STP
+
             $q = "
                 INSERT IGNORE INTO $catalog_category_entity_varchar
                     (
@@ -3027,9 +2717,6 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
             ";
             $this->db_do($q);
 
-
-//stp
-
         }
 
         $this->delete_old_sinch_categories_from_shop();
@@ -3037,15 +2724,9 @@ private function addCategoryDataMultistore($categories_temp, $stINch_categories_
         $this->db_do("RENAME TABLE $categories_temp TO $stINch_categories");
     }
 
-#################################################################################################
-
-function culcPathMultistore($parent_id, $ent_id, $catalog_category_entity)
+    function culcPathMultistore($parent_id, $ent_id, $catalog_category_entity)
     {
-
-//echo("\nparent_id = [$parent_id]   ent_id = [$ent_id]");
-
         $path = '';
-
         $cat_id = $parent_id;
 
         $q = "
@@ -3073,12 +2754,8 @@ function culcPathMultistore($parent_id, $ent_id, $catalog_category_entity)
         if ($path) $path .= $ent_id;
         else $path = $ent_id;
 
-//echo("   path = [$path]\n");
-
         return $path;
     }
-
-#################################################################################################
 
     private function mergeMultistoreCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                                                $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $im_type,
@@ -3087,25 +2764,19 @@ function culcPathMultistore($parent_id, $ent_id, $catalog_category_entity)
     {
         echo("mergeMultistoreCategories RUN\n");
 
-
         $this->createNewDefaultCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
             $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $name_attrid, $attr_display_mode, $attr_url_key, $attr_is_active, $attr_include_in_menu);
 
-
         $this->mapSinchCategoriesMultistoreMerge($stINch_categories_mapping_temp, $stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $categories_temp, $im_type, $_categoryEntityTypeId, $name_attrid);
-
 
         $this->addCategoryDataMultistoreMerge($categories_temp, $stINch_categories_mapping_temp, $stINch_categories_mapping, $stINch_categories, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
             $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $im_type,
             $name_attrid, $attr_is_active, $attr_include_in_menu, $is_anchor_attrid, $image_attrid);
 
-
         echo("\n\n\nmergeMultistoreCategories DONE\n");
     }
 
-#################################################################################################
-
-private function createNewDefaultCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
+    private function createNewDefaultCategories($coincidence, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                                                 $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $name_attrid, $attr_display_mode, $attr_url_key, $attr_is_active, $attr_include_in_menu)
     {
         echo("\n\n    ==========================================================================\n    createNewDefaultCategories start... \n");
@@ -3124,30 +2795,13 @@ private function createNewDefaultCategories($coincidence, $catalog_category_enti
             WHERE parent_id = 1"); // 41 - category name
         while ($row = mysqli_fetch_array($query)) $old_cats[] = $row['category_name'];
 
-//var_dump($old_cats);
-
-
         $query = $this->db_do("SELECT MAX(entity_id) AS max_entity_id FROM $catalog_category_entity");
         $max_entity_id = mysqli_fetch_array($query);
-
-//var_dump($max_entity_id);
 
         $i = $max_entity_id[max_entity_id] + 1;
 
         foreach ($coincidence as $key => $item) {
             echo("\n    coincidence: key = [$key]\n");
-
-
-            /**if ($item)
-             * {
-             * echo(">>>>>>>>>>>>>>>>>>>>>>>>>>>> CONTINUE: key = [$key]   item = [$item]\n");
-             * //continue;
-             * }
-             * else
-             * {
-             * echo(">>>>>>>>>>>>>>>>>>>>>>>>>>>> NOT CONTINUE: key = [$key]   item = [$item]\n");
-             * }/**/
-
 
             if (in_array($key, $old_cats)) {
                 echo("    CONTINUE: key = [$key]   item = [$item]\n");
@@ -3156,13 +2810,11 @@ private function createNewDefaultCategories($coincidence, $catalog_category_enti
                 echo("    CREATE NEW CATEGORY: key = [$key]   item = [$item]\n");
             }
 
-
             $this->db_do("INSERT $catalog_category_entity
                         (entity_id, entity_type_id, attribute_set_id, parent_id, created_at, updated_at,
                         path, position, level, children_count, store_category_id, parent_store_category_id)
                     VALUES
                         ($i, $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, 1, now(), now(), '1/$i', 1, 1, 1, NULL, NULL)");
-
 
             $this->db_do("INSERT $catalog_category_entity_varchar
                         (entity_type_id, attribute_id, store_id, entity_id, value)
@@ -3181,15 +2833,12 @@ private function createNewDefaultCategories($coincidence, $catalog_category_enti
                         ($_categoryEntityTypeId, $attr_include_in_menu, 0, $i, 1),
                         ($_categoryEntityTypeId, $attr_include_in_menu, 1, $i, 1)");
             $i++;
-        } // foreach($coincidence as $key => $item)
+        }
 
         echo("\n    createNewDefaultCategories done... \n    ==========================================================================\n");
-
     }
 
-#################################################################################################
-
-private function mapSinchCategoriesMultistoreMerge($stINch_categories_mapping_temp, $stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $categories_temp, $im_type, $_categoryEntityTypeId, $name_attrid)
+    private function mapSinchCategoriesMultistoreMerge($stINch_categories_mapping_temp, $stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $categories_temp, $im_type, $_categoryEntityTypeId, $name_attrid)
     {
         echo("\n\n\    ==========================================================================\n    mapSinchCategoriesMultistore start... \n");
 
@@ -3202,7 +2851,6 @@ private function mapSinchCategoriesMultistoreMerge($stINch_categories_mapping_te
             FROM $catalog_category_entity)";
         echo("\n    $query\n");
         $this->db_do($query);
-
 
         $query = "
             UPDATE $stINch_categories_mapping_temp cmt
@@ -3217,7 +2865,6 @@ private function mapSinchCategoriesMultistoreMerge($stINch_categories_mapping_te
         echo("\n    $query\n");
         $this->db_do($query);
 
-
         $query = "
             UPDATE $stINch_categories_mapping_temp cmt
             JOIN $catalog_category_entity cce
@@ -3225,7 +2872,6 @@ private function mapSinchCategoriesMultistoreMerge($stINch_categories_mapping_te
             SET cmt.shop_parent_id = cce.entity_id";
         echo("\n    $query\n");
         $this->db_do($query);
-
 
         $query = "
             SELECT DISTINCT
@@ -3260,7 +2906,6 @@ private function mapSinchCategoriesMultistoreMerge($stINch_categories_mapping_te
             $this->db_do($query);
         }
 
-
         // added for mapping new sinch categories in merge && !UPDATE_CATEGORY_DATA mode
         if ((UPDATE_CATEGORY_DATA && $im_type == "MERGE") || ($im_type == "REWRITE")) $where = '';
         else $where = 'WHERE cce.parent_id = 0 AND cce.store_category_id IS NOT NULL';
@@ -3285,14 +2930,12 @@ private function mapSinchCategoriesMultistoreMerge($stINch_categories_mapping_te
         echo("\n    mapSinchCategoriesMultistore done... \n    ==========================================================================\n\n\n\n");
     }
 
-#################################################################################################
 
-private function addCategoryDataMultistoreMerge($categories_temp, $stINch_categories_mapping_temp, $stINch_categories_mapping, $stINch_categories, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
+    private function addCategoryDataMultistoreMerge($categories_temp, $stINch_categories_mapping_temp, $stINch_categories_mapping, $stINch_categories, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int,
                                                     $_categoryEntityTypeId, $_categoryDefault_attribute_set_id, $im_type,
                                                     $name_attrid, $attr_is_active, $attr_include_in_menu, $is_anchor_attrid, $image_attrid)
     {
         echo("\n\n\n\n    *************************************************************\n    addCategoryDataMultistoreMerge start... \n");
-
 
         if (UPDATE_CATEGORY_DATA) {
             $ignore = '';
@@ -3304,9 +2947,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                     children_count = c.children_count,
                     position = c.order_number,
                     parent_store_category_id = c.parent_store_category_id";
-            //level=c.level,
-            //children_count=c.children_count
-            //position=c.order_number,
         } else {
             $ignore = 'IGNORE';
             $on_diplicate_key_update = '';
@@ -3346,9 +2986,7 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
         echo("\n\n    $query\n\n");
         $this->db_do($query);
 
-
         $this->mapSinchCategoriesMultistoreMerge($stINch_categories_mapping_temp, $stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $categories_temp, $im_type, $_categoryEntityTypeId, $name_attrid);
-
 
         $categories = $this->db_do("SELECT entity_id, parent_id FROM $catalog_category_entity ORDER BY parent_id");
         while ($row = mysqli_fetch_array($categories)) {
@@ -3361,11 +2999,7 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 UPDATE $catalog_category_entity
                 SET path = '$path'
                 WHERE entity_id = $entity_id");
-        } // while ($row = mysqli_fetch_array($categories))
-
-
-///////////////////////////////////////////////////////
-
+        }
 
         if (UPDATE_CATEGORY_DATA) {
             echo "Update category_data \n";
@@ -3393,7 +3027,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                     value = c.category_name";
             $this->db_do($q);
 
-
             $q = "
                 INSERT INTO $catalog_category_entity_varchar
                     (
@@ -3416,7 +3049,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 ON DUPLICATE KEY UPDATE
                     value = c.category_name";
             $this->db_do($q);
-
 
             $q = "
                 INSERT INTO $catalog_category_entity
@@ -3441,7 +3073,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                     value = 1";
             $this->db_do($q);
 
-
             $q = "
                 INSERT INTO $catalog_category_entity_int
                     (
@@ -3464,7 +3095,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 ON DUPLICATE KEY UPDATE
                     value = 1";
             $this->db_do($q);
-
 
             $q = "
                 INSERT INTO $catalog_category_entity_int
@@ -3489,7 +3119,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                     value = c.include_in_menu";
             $this->db_do($q);
 
-
             $q = "
                 INSERT INTO $catalog_category_entity_int
                     (
@@ -3512,7 +3141,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 ON DUPLICATE KEY UPDATE
                     value = c.is_anchor";
             $this->db_do($q);
-
 
             $q = "
                 INSERT INTO $catalog_category_entity_int
@@ -3559,7 +3187,7 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 ON DUPLICATE KEY UPDATE
                     value = c.categories_image";
             $this->db_do($q);
-//STP
+
             $q = "
                 INSERT INTO $catalog_category_entity_varchar
                     (
@@ -3628,12 +3256,8 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 ON DUPLICATE KEY UPDATE
                      value = c.Description";
             $this->db_do($q);
-
-
-//stp
         } else {
             echo "Insert ignore category_data \n";
-
 
             $q = "
                 INSERT IGNORE INTO $catalog_category_entity_varchar
@@ -3656,7 +3280,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 )";
             $this->db_do($q);
 
-
             $q = "
                 INSERT IGNORE INTO $catalog_category_entity_int
                     (
@@ -3677,7 +3300,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                     ON c.store_category_id = scm.store_category_id
                 )";
             $this->db_do($q);
-
 
             $q = "
                 INSERT IGNORE INTO $catalog_category_entity_int
@@ -3700,7 +3322,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 )";
             $this->db_do($q);
 
-
             $q = "
                 INSERT IGNORE INTO $catalog_category_entity_int
                     (
@@ -3722,7 +3343,6 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 )";
             $this->db_do($q);
 
-
             $q = "
                 INSERT IGNORE INTO $catalog_category_entity_varchar
                     (
@@ -3743,7 +3363,7 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                     ON c.store_category_id = scm.store_category_id
                 )";
             $this->db_do($q);
-//STP
+
             $q = "
                 INSERT IGNORE INTO $catalog_category_entity_varchar
                     (
@@ -3809,37 +3429,23 @@ private function addCategoryDataMultistoreMerge($categories_temp, $stINch_catego
                 )
             ";
             $this->db_do($q);
-
-
-//stp
-
         }
-
-
-//return; // !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         $this->db_do("DROP TABLE IF EXISTS $stINch_categories\n\n");
         $this->db_do("RENAME TABLE $categories_temp TO $stINch_categories");
 
         $this->deleteOldSinchCategoriesFromShopMerge($stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int);
-        /**/
 
         echo("\n    addCategoryDataMultistoreMerge done... \n    *************************************************************\n");
-
     }
 
-#################################################################################################
-
-private function deleteOldSinchCategoriesFromShopMerge($stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int)
+    private function deleteOldSinchCategoriesFromShopMerge($stINch_categories_mapping, $catalog_category_entity, $catalog_category_entity_varchar, $catalog_category_entity_int)
     {
-
         echo("\n\n\n\n    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n    deleteOldSinchCategoriesFromShopMerge start... \n");
-
 
         $query = "DROP TABLE IF EXISTS delete_cats";
         echo("\n    $query\n");
         $this->db_do($query);
-
 
         $delete_cats = Mage::getSingleton('core/resource')->getTableName('delete_cats');
         $stINch_categories = Mage::getSingleton('core/resource')->getTableName('stINch_categories');
@@ -3867,49 +3473,11 @@ WHERE cce.entity_id NOT IN
         echo("\n    $query\n");
         $this->db_do($query);
 
-
         $query = "DROP TABLE IF EXISTS $delete_cats";
         echo("\n    $query\n");
-//$this->db_do($query );
-
-
-        /**
-         * $query = "
-         * DELETE cat FROM $catalog_category_entity_varchar cat
-         * JOIN $stINch_categories_mapping scm
-         * ON cat.entity_id = scm.shop_entity_id
-         * WHERE
-         * (scm.shop_store_category_id IS NOT NULL) AND
-         * (scm.store_category_id IS NULL)";
-         * echo("\n    $query\n");
-         * //        $this->db_do($query);
-         *
-         * $query = "
-         * DELETE cat FROM $catalog_category_entity_int cat
-         * JOIN $stINch_categories_mapping scm
-         * ON cat.entity_id = scm.shop_entity_id
-         * WHERE
-         * (scm.shop_store_category_id IS NOT NULL) AND
-         * (scm.store_category_id IS NULL)";
-         * echo("\n    $query\n");
-         * //        $this->db_do($query);
-         *
-         * $query = "
-         * DELETE cat FROM $catalog_category_entity cat
-         * JOIN $stINch_categories_mapping scm
-         * ON cat.entity_id=scm.shop_entity_id
-         * WHERE
-         * (scm.shop_store_category_id IS NOT NULL) AND
-         * (scm.store_category_id IS NULL)";
-         * echo("\n    $query\n");
-         * //        $this->db_do($query);
-         * /**/
 
         echo("\n    deleteOldSinchCategoriesFromShopMerge done... \n    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n\n");
-
     }
-
-#################################################################################################
 
     private function _set_default_root_category()
     {
@@ -3920,8 +3488,6 @@ WHERE cce.entity_id NOT IN
             WHERE csg.root_category_id > 0 AND cce.entity_id IS NULL";
         $this->db_do($q);
     }
-
-#################################################################################################
 
     function ParseCategoryFeatures()
     {
@@ -3959,11 +3525,8 @@ WHERE cce.entity_id NOT IN
         $this->_LOG(' ');
     }
 
-#################################################################################################
-
     function ParseDistributors()
     {
-
         $parse_file = $this->varDir . FILE_DISTRIBUTORS;
         if (filesize($parse_file)) {
             $this->_LOG("Start parse " . FILE_DISTRIBUTORS);
@@ -3993,9 +3556,6 @@ WHERE cce.entity_id NOT IN
         }
         $this->_LOG(' ');
     }
-
-
-#################################################################################################
 
     function ParseDistributorsStockAndPrice()
     {
@@ -4031,10 +3591,7 @@ WHERE cce.entity_id NOT IN
             $this->_LOG("Wrong file " . $parse_file);
         }
         $this->_LOG(' ');
-
     }
-
-############################### ##################################################################
 
     function ParseProductContracts()
     {
@@ -4065,10 +3622,7 @@ WHERE cce.entity_id NOT IN
             $this->_LOG("Wrong file " . $parse_file);
         }
         $this->_LOG(' ');
-
     }
-
-#################################################################################################
 
     function ParseEANCodes()
     {
@@ -4102,11 +3656,8 @@ WHERE cce.entity_id NOT IN
         $this->_LOG(' ');
     }
 
-#################################################################################################
-
     function ParseManufacturers()
     {
-
         $parse_file = $this->varDir . FILE_MANUFACTURERS;
         if (filesize($parse_file)) {
             $this->_LOG("Start parse " . FILE_MANUFACTURERS);
@@ -4178,7 +3729,6 @@ WHERE cce.entity_id NOT IN
                 $quer2 = $this->db_do($q2);
                 //                $option['attribute_id'] = $this->attributes['manufacturer'];
                 //                $option['value'][$row['sinch_manufacturer_id']][0] = $row['manufacturer_name'];
-
             }
 
             $q = "UPDATE " . Mage::getSingleton('core/resource')->getTableName('manufacturers_temp') . " mt
@@ -4199,8 +3749,6 @@ WHERE cce.entity_id NOT IN
         }
         $this->_LOG(' ');
     }
-
-#################################################################################################
 
     function ParseRelatedProducts()
     {
@@ -4239,12 +3787,8 @@ WHERE cce.entity_id NOT IN
         $this->_LOG(" ");
     }
 
-
-#################################################################################################
-
     function ParseProductFeatures()
     {
-
         $parse_file = $this->varDir . FILE_PRODUCT_FEATURES;
         if (filesize($parse_file) || $this->_ignore_product_features) {
             $this->_LOG("Start parse " . FILE_PRODUCT_FEATURES);
@@ -4277,8 +3821,6 @@ WHERE cce.entity_id NOT IN
         $this->_LOG(" ");
     }
 
-#################################################################################################
-
     function ParseProductCategories()
     {
         $parse_file = $this->varDir . FILE_PRODUCT_CATEGORIES;
@@ -4309,15 +3851,11 @@ WHERE cce.entity_id NOT IN
             $this->_LOG("Wrong file " . $parse_file);
         }
         $this->_LOG(' ');
-
     }
-
-
-#################################################################################################
 
     function ParseProducts($coincidence)
     {
-        echo("\nParseProducts 2\n");
+        echo("\nParseProducts 1\n");
         $dataConf = Mage::getStoreConfig('sinchimport_root/sinch_ftp');
         $replace_merge_product = $dataConf['replace_products'];
 
@@ -4345,7 +3883,7 @@ WHERE cce.entity_id NOT IN
                              Weight decimal(15,4),
                              Family varchar(255),
                              Reviews varchar(255),
-                             pdf_url varchar(255),
+                             pdf_url varchar(512),
                              product_short_description varchar(255),
                              products_date_added datetime default NULL,
                              products_last_modified datetime default NULL,
@@ -4426,13 +3964,10 @@ WHERE cce.entity_id NOT IN
                     SET pt.store_category_id=spc.store_category_id
                     WHERE pt.store_product_id=spc.store_product_id
                     ");
-//http://redmine.bintime.com/issues/4127
-//3.
+
                 $this->db_do("UPDATE " . Mage::getSingleton('core/resource')->getTableName('products_temp') . "
                           SET main_image_url = medium_image_url WHERE main_image_url = ''
                          ");
-//end
-
             }
 
             echo("\nParseProducts 4\n");
@@ -4457,10 +3992,18 @@ WHERE cce.entity_id NOT IN
 
             if ($replace_merge_product == "REWRITE") {
                 $this->db_do("DELETE FROM " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity'));
+
                 $this->db_do("SET FOREIGN_KEY_CHECKS=0");
                 $this->db_do("TRUNCATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity'));
+                $this->db_do("TRUNCATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar'));
+                $this->db_do("TRUNCATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_int'));
+                $this->db_do("TRUNCATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_text'));
+                $this->db_do("TRUNCATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_decimal'));
                 $this->db_do("SET FOREIGN_KEY_CHECKS=1");
             }
+
+            // Modify catalog_product_entity_varchar - Kai
+            $this->db_do("ALTER TABLE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar') . " MODIFY value VARCHAR(512)");
 
             echo("\nParseProducts 8\n");
             $this->addProductsWebsite();
@@ -4470,7 +4013,7 @@ WHERE cce.entity_id NOT IN
             if (count($coincidence) == 1) {
                 $this->replaceMagentoProducts();
             } else {
-                echo("\n\n\n\n\n\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ [" . $this->im_type . "] $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n\n\n\n"); //exit;
+                echo("\n\n\n\n\n\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ [" . $this->im_type . "] $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n\n\n\n");
 
 
                 switch ($this->im_type) {
@@ -4484,7 +4027,7 @@ WHERE cce.entity_id NOT IN
             }
             echo("\nParseProducts 10\n");
 
-            // Toàn đẹp trai đã rào đoạn mã này
+            // Kai
             $this->mapSinchProducts($replace_merge_product, true);
             $this->addManufacturer_attribute();
             $this->db_do("DROP TABLE IF EXISTS " . Mage::getSingleton('core/resource')->getTableName('stINch_products'));
@@ -4498,12 +4041,11 @@ WHERE cce.entity_id NOT IN
         echo("\nParseProducts 11\n");
     }
 
-#################################################################################################
 
     public function addProductsWebsite()
     {
         $this->db_do(" DROP TABLE IF EXISTS " . Mage::getSingleton('core/resource')->getTableName('products_website_temp'));
-        // TEMPORARY
+
         $this->db_do("
                 CREATE TABLE `" . Mage::getSingleton('core/resource')->getTableName('products_website_temp') . "` (
                     `id` int(10) unsigned NOT NULL auto_increment,
@@ -4538,11 +4080,7 @@ WHERE cce.entity_id NOT IN
                     )";
             $result2 = $this->db_do($sql);
         }
-
-
     }
-
-################################################################################################
 
     public function mapSinchProducts($mode = 'MERGE', $mapping_again = false)
     {
@@ -4574,7 +4112,10 @@ WHERE cce.entity_id NOT IN
 
         // backup Product ID in REWRITE mode
         if ($mode == 'REWRITE' && !$mapping_again) {
-            $productEntityTable = Mage::getSingleton('core/resource')->getTableName('sinch_product_backup');
+            $catalog_product_entity_backup = Mage::getSingleton('core/resource')->getTableName('sinch_product_backup');
+            if ($this->_checkDataExist($catalog_product_entity_backup)) {
+                $productEntityTable = $catalog_product_entity_backup;
+            }
         }
         // (end) backup Product ID in REWRITE mode
 
@@ -4641,12 +4182,10 @@ WHERE cce.entity_id NOT IN
         if (!$delete_eav) {
             $result = $this->db_do("
                                     DELETE FROM " . Mage::getSingleton('core/resource')->getTableName('catalog_product_index_eav') . "
-                                    WHERE attribute_id = " . $this->_getProductAttributeId('manufacturer')//." AND store_id = ".$websiteId
+                                    WHERE attribute_id = " . $this->_getProductAttributeId('manufacturer')
             );
         }
         $this->addManufacturer_attribute();
-        // todo: doesn't seems to work properly, should be inserted per visibility
-        // done, test now
 
         $result = $this->db_do("
                                 INSERT INTO " . Mage::getSingleton('core/resource')->getTableName('catalog_product_index_eav') . " (
@@ -4697,18 +4236,12 @@ WHERE cce.entity_id NOT IN
                                 ON DUPLICATE KEY UPDATE
                                     value = mn.shop_option_id
                               ");
-
-
     }
-
-#################################################################################################
 
     private function _getProductAttributeId($attributeCode)
     {
         return $this->_getAttributeId($attributeCode, 'catalog_product');
     }
-
-#################################################################################################
 
     private function addManufacturer_attribute()
     {
@@ -4733,15 +4266,10 @@ WHERE cce.entity_id NOT IN
                                 ON DUPLICATE KEY UPDATE
                                     value = pm.manufacturer_option_id
                               ");
-
-
     }
-
-#################################################################################################
 
     public function replaceMagentoProducts()
     {
-
         $connection = Mage::getModel('core/resource')->getConnection('core_write');
 
         $result = $this->db_do("DELETE cpe
@@ -4977,9 +4505,7 @@ WHERE cce.entity_id NOT IN
                               ");
 
 
-        //add multi categories;
-
-
+        //add multi categories
         $result = $this->db_do("
                                 INSERT INTO " . Mage::getSingleton('core/resource')->getTableName('catalog_category_product') . "
                                 (category_id,  product_id)
@@ -5231,14 +4757,6 @@ WHERE cce.entity_id NOT IN
                                     website_id=w.website_id
                               ");
 
-        // temporary disabled mart@bintime.com
-        //$result = $this->db_do("
-        //      UPDATE catalog_category_entity_int a
-        //      SET a.value = 0
-        //      WHERE a.attribute_id = 32
-        //");
-
-
         //Adding tax class "Taxable Goods"
         $result = $this->db_do("
                                 INSERT INTO " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_int') . " (
@@ -5305,7 +4823,6 @@ WHERE cce.entity_id NOT IN
                                     value = b.main_image_url
                               ");
 
-
         // image for specific web sites
         $result = $this->db_do("
                                 INSERT INTO " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar') . " (
@@ -5328,7 +4845,6 @@ WHERE cce.entity_id NOT IN
                                 ON DUPLICATE KEY UPDATE
                                     value = b.main_image_url
                               ");
-
 
         // small_image for specific web sites
         $result = $this->db_do("
@@ -5353,7 +4869,6 @@ WHERE cce.entity_id NOT IN
                                 ON DUPLICATE KEY UPDATE
                                     value = b.medium_image_url
                                 ");
-
 
         // small_image for all web sites
         $result = $this->db_do("
@@ -5403,7 +4918,6 @@ WHERE cce.entity_id NOT IN
                                 ON DUPLICATE KEY UPDATE
                                     value = b.thumb_image_url
                               ");
-
 
         // thumbnail for all web sites
         $result = $this->db_do("
@@ -5525,8 +5039,6 @@ STP DELETE*/
         $this->addRelatedProducts();
     }
 
-#################################################################################################
-
     private function _getProductDefaulAttributeSetId()
     {
         if (!$this->defaultAttributeSetId) {
@@ -5545,7 +5057,6 @@ STP DELETE*/
         return $this->defaultAttributeSetId;
     }
 
-#################################################################################################
 
     function dropHTMLentities($entity_type_id, $attribute_id)
     {
@@ -5565,11 +5076,8 @@ STP DELETE*/
                               AND entity_type_id=" . $entity_type_id . "
                               AND attribute_id=" . $attribute_id);
             }
-
         }
     }
-
-#################################################################################################
 
     function valid_char($string)
     {
@@ -5583,18 +5091,8 @@ STP DELETE*/
         $string = preg_replace('/&micro;/', ' ', $string);
         $string = preg_replace('/&sup2;/', ' ', $string);
         $string = preg_replace('/&sup3;/', ' ', $string);
-        //                                $string = preg_replace('/\xe2\x80\x93/','-',$string);
-        //                                $string = preg_replace('/\xe2\x80\x99/','\'',$string);
-        //                                $string = preg_replace('/\xe2\x80\x9c/',' ',$string);
-        //                                $string = preg_replace('/\xe2\x80\x9d/',' ',$string);
-
-        //                                return utf8_decode($string);
-
         return $string;
     }
-
-
-#################################################################################################
 
     function addDescriptions()
     {
@@ -5645,12 +5143,7 @@ STP DELETE*/
                                 ON DUPLICATE KEY UPDATE
                                     value = b.description
                               ");
-
-
     }
-
-
-#################################################################################################
 
     function cleanProductDistributors()
     {
@@ -5661,16 +5154,14 @@ STP DELETE*/
         }
     }
 
-#################################################################################################
-
     function cleanProductContracts()
     {
-        $this->db_do("UPDATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar') . "
-                    SET value = ''
-                    WHERE entity_type_id=" . $this->_getProductEntityTypeId() . " AND attribute_id=" . $this->_getProductAttributeId('contract_id'));
+        if ($contractIdAttr = $this->_getProductAttributeId('contract_id')) {
+            $this->db_do("UPDATE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar') . "
+                SET value = ''
+                WHERE entity_type_id=" . $this->_getProductEntityTypeId() . " AND attribute_id=" . $contractIdAttr);
+        }
     }
-
-#################################################################################################
 
     function addReviews()
     {
@@ -5721,11 +5212,7 @@ STP DELETE*/
                                 ON DUPLICATE KEY UPDATE
                                     value = b.Reviews
                               ");
-
-
     }
-
-#################################################################################################
 
     function addWeight()
     {
@@ -5777,11 +5264,7 @@ STP DELETE*/
 
 
                               ");
-
-
     }
-
-#################################################################################################
 
     function addSearchCache()
     {
@@ -5832,11 +5315,7 @@ STP DELETE*/
                                 ON DUPLICATE KEY UPDATE
                                     value = b.search_cache
                               ");
-
-
     }
-
-#################################################################################################
 
     function addPdfUrl()
     {
@@ -5855,7 +5334,6 @@ STP DELETE*/
                                                         '</a>')
                                 WHERE pdf_url != ''
         ");
-//<a title="" onclick="popWin('http://images.icecat.biz/img/gallery/14532248_4539.jpg', 'gallery', 'width=500,height=500,left=50,top=50,location=no,status=yes,scrollbars=yes,resizable=yes'); return false;" href="#">
         $result = $this->db_do("
                                 INSERT INTO " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar') . " (
                                     entity_type_id,
@@ -5901,10 +5379,7 @@ STP DELETE*/
                                 ON DUPLICATE KEY UPDATE
                                     value = b.pdf_url
                               ");
-
     }
-
-#################################################################################################
 
     function addShortDescriptions()
     {
@@ -5954,10 +5429,7 @@ STP DELETE*/
                                 ON DUPLICATE KEY UPDATE
                                     value = b.product_short_description
                               ");
-
     }
-
-#################################################################################################
 
     function addProductDistributors()
     {
@@ -6023,13 +5495,8 @@ STP DELETE*/
                               ");
 
             $this->db_do("DELETE sdsapt FROM " . Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary') . " sdsapt JOIN " . Mage::getSingleton('core/resource')->getTableName('stINch_distributors_stock_and_price_temporary_supplier') . " sdsapts ON sdsapt.store_product_id = sdsapts.store_product_id AND sdsapt.distributor_id = sdsapts.distributor_id");
-
-
         }
-
     }
-
-#################################################################################################
 
     function addProductContracts()
     {
@@ -6087,11 +5554,7 @@ STP DELETE*/
                                 ON DUPLICATE KEY UPDATE
                                     value = b.contract_id_str
                               ");
-
-
     }
-
-#################################################################################################
 
     function addEAN()
     {
@@ -6173,8 +5636,6 @@ STP DELETE*/
 
     }
 
-#################################################################################################
-
     function addSpecification()
     {
         // product specification for all web sites
@@ -6223,11 +5684,7 @@ STP DELETE*/
                                 ON DUPLICATE KEY UPDATE
                                     value = b.specifications
                               ");
-
-
     }
-
-################################################################################################
 
     function addRelatedProducts()
     {
@@ -6325,49 +5782,13 @@ STP DELETE*/
                                         link_id=ct.link_id
 
                                   ");
-
-        /*            $q="select distinct store_product_id from stINch_related_products";
-                      $quer=$this->db_do($q);
-                      $prod = Mage::getModel('catalog/product');
-                      while ($row = mysqli_fetch_assoc($quer)) {
-                      $q1="select distinct store_related_product_id store_product_id from stINch_related_products where store_product_id=".$row['store_product_id'].;
-                      $quer1=$this->db_do($q1);
-                      $prod->load($row['store_product_id']);
-
-###//get related product data (product id's and positions)
-###$relatedData = array();
-###foreach ($product->getRelatedLinkCollection() as $link) {
-###        $relatedData[$link->getLinkedProductId()]['position'] = $link->getPosition();
-###}
-###//manipulate $relatedData array
-###// ...
-###//set and save related product data
-###$product->setRelatedLinkData($relatedData);
-###$product->save();
-###
-    $i=1;
-    while ($row1 = mysqli_fetch_assoc($quer1)) {
-    $param[$row1['store_related_product_id']]['position']=$i++;
-
-    }
-    $prod->setRelatedLinkData($param);
-            //here ... some other product operations and in the end
-            $prod->save();
-
-            }
-         */
     }
 
-#################################################################################################
-
-public function replaceMagentoProductsMultistore($coincidence)
+    public function replaceMagentoProductsMultistore($coincidence)
     {
-
         echo("\n     replaceMagentoProductsMultistore 1\n");
 
-
         $connection = Mage::getModel('core/resource')->getConnection('core_write');
-
 
         $products_temp = Mage::getSingleton('core/resource')->getTableName('products_temp');
         $products_website_temp = Mage::getSingleton('core/resource')->getTableName('products_website_temp');
@@ -6382,8 +5803,8 @@ public function replaceMagentoProductsMultistore($coincidence)
         $core_store = Mage::getSingleton('core/resource')->getTableName('core_store');
         $catalog_product_enabled_index = Mage::getSingleton('core/resource')->getTableName('catalog_product_enabled_index');
         $catalog_product_website = Mage::getSingleton('core/resource')->getTableName('catalog_product_website');
-//STP DELETE        $catalogsearch_fulltext          = Mage::getSingleton('core/resource')->getTableName('catalogsearch_fulltext');
-//      $catalogsearch_query             = Mage::getSingleton('core/resource')->getTableName('catalogsearch_query');
+        //$catalogsearch_fulltext = Mage::getSingleton('core/resource')->getTableName('catalogsearch_fulltext');
+        //$catalogsearch_query = Mage::getSingleton('core/resource')->getTableName('catalogsearch_query');
         $catalog_category_entity_varchar = Mage::getSingleton('core/resource')->getTableName('catalog_category_entity_varchar');
 
         $_getProductEntityTypeId = $this->_getProductEntityTypeId();
@@ -6399,7 +5820,6 @@ public function replaceMagentoProductsMultistore($coincidence)
 
         $cat_attr_name = $this->_getCategoryAttributeId('name');
         echo("\n     replaceMagentoProductsMultistore 2\n");
-
 
         //clear products, inserting new products and updating old others.
         $query = "
@@ -6468,7 +5888,6 @@ public function replaceMagentoProductsMultistore($coincidence)
 
         echo("\n     replaceMagentoProductsMultistore 4\n");
 
-
         //Set enabled
         $result = $this->db_do("
             DELETE cpei
@@ -6493,9 +5912,7 @@ public function replaceMagentoProductsMultistore($coincidence)
             ON DUPLICATE KEY UPDATE
                 value = 1");
 
-
         echo("\n     replaceMagentoProductsMultistore 5\n");
-
 
         // set status = 1 for all stores
         $result = $this->db_do("
@@ -6512,9 +5929,7 @@ public function replaceMagentoProductsMultistore($coincidence)
             ON DUPLICATE KEY UPDATE
                 value = 1");
 
-
         echo("\n     replaceMagentoProductsMultistore 6\n");
-
 
         //Unifying products with categories.
         $result = $this->db_do("
@@ -6524,12 +5939,9 @@ public function replaceMagentoProductsMultistore($coincidence)
                 ON ccp.product_id = cpe.entity_id
             WHERE cpe.entity_id IS NULL");
 
-
         echo("\n     replaceMagentoProductsMultistore 7\n");
 
-
         $root_cats = Mage::getSingleton('core/resource')->getTableName('root_cats');
-
 
         $result = $this->db_do("DROP TABLE IF EXISTS $root_cats");
         $result = $this->db_do("
@@ -6544,11 +5956,8 @@ FROM $catalog_category_entity
 ");
         $result = $this->db_do("UPDATE $root_cats SET root_cat = entity_id WHERE CHAR_LENGTH(root_cat) = 0");
 
-
         echo("\n     replaceMagentoProductsMultistore 8\n");
 
-
-// !!! $this->_root_cat
         $result = $this->db_do("
             UPDATE IGNORE $catalog_category_product ccp
             LEFT JOIN $catalog_category_entity cce
@@ -6569,13 +5978,7 @@ FROM $catalog_category_entity
                 ON ccp.category_id = cce.entity_id
             WHERE cce.entity_id IS NULL");
 
-
-//echo("\n\nget out...\n\n");
-//return;
-
-
         echo("\n     replaceMagentoProductsMultistore 10\n");
-
 
         $catalog_category_product_for_delete_temp = $catalog_category_product . "_for_delete_temp";
 
@@ -6640,11 +6043,6 @@ FROM $catalog_category_entity
                 ON ccp.product_id = ccpfd.product_id
                 AND ccp.category_id = ccpfd.category_id");
 
-
-//echo("\n\nget out...\n\n");
-//return;
-
-
         echo("\n     replaceMagentoProductsMultistore 15\n");
 
         $result = $this->db_do("
@@ -6683,7 +6081,6 @@ FROM $catalog_category_entity
         product_id = cpe.entity_id
         ");
 
-
         echo("\n     replaceMagentoProductsMultistore 16\n");
 
         //Indexing products and categories in the shop
@@ -6694,9 +6091,7 @@ FROM $catalog_category_entity
                 ON ccpi.product_id = cpe.entity_id
             WHERE cpe.entity_id IS NULL");
 
-
         echo("\n     replaceMagentoProductsMultistore 16.2\n");
-
 
         $result = $this->db_do("
             INSERT INTO $catalog_category_product_index
@@ -6714,10 +6109,8 @@ FROM $catalog_category_entity
             ON DUPLICATE KEY UPDATE
                 visibility = 4");
 
-
         echo("\n     replaceMagentoProductsMultistore 17\n");
 
-// !!! $this->_root_cat
         $result = $this->db_do("
             INSERT ignore INTO $catalog_category_product_index
                 (category_id, product_id, position, is_parent, store_id, visibility)
@@ -6737,7 +6130,6 @@ FROM $catalog_category_entity
                 visibility = 4");
 
         echo("\n     replaceMagentoProductsMultistore 18\n");
-
 
         //Set product name for specific web sites
         $result = $this->db_do("
@@ -6767,7 +6159,6 @@ FROM $catalog_category_entity
 
         echo("\n     replaceMagentoProductsMultistore 19\n");
 
-
         // product name for all web sites
         $result = $this->db_do("
             INSERT INTO $catalog_product_entity_varchar
@@ -6787,7 +6178,6 @@ FROM $catalog_category_entity
 
         echo("\n     replaceMagentoProductsMultistore 20\n");
 
-
         $this->dropHTMLentities($this->_getProductEntityTypeId(), $this->_getProductAttributeId('name'));
         $this->addDescriptions();
         $this->cleanProductDistributors();
@@ -6802,8 +6192,6 @@ FROM $catalog_category_entity
         $this->addEAN();
         $this->addSpecification();
         $this->addManufacturers();
-
-//echo("    .... DONE\n");return;
 
         echo("\n     replaceMagentoProductsMultistore 21\n");
 
@@ -6846,10 +6234,6 @@ FROM $catalog_category_entity
             )
             ON DUPLICATE KEY UPDATE
                 visibility = 4");
-
-
-/////////////////////////////////////echo("    .... DONE\n");return;
-
 
         echo("\n     replaceMagentoProductsMultistore 24\n");
 
@@ -6910,19 +6294,7 @@ FROM $catalog_category_entity
                 product_id = a.entity_id,
                 website_id = w.website_id");
 
-
-//echo("    .... DONE\n");return;
-
-
         echo("\n     replaceMagentoProductsMultistore 28\n");
-
-        // temporary disabled mart@bintime.com
-        //$result = $this->db_do("
-        //      UPDATE catalog_category_entity_int a
-        //      SET a.value = 0
-        //      WHERE a.attribute_id = 32
-        //");
-
 
         //Adding tax class "Taxable Goods"
         $result = $this->db_do("
@@ -7078,7 +6450,6 @@ FROM $catalog_category_entity
 
         echo("\n     replaceMagentoProductsMultistore 36\n");
 
-
         /*STP DELETE
         //Refresh fulltext search
         $result = $this->db_do("DROP TABLE IF EXISTS {$catalogsearch_fulltext}_tmp");
@@ -7201,16 +6572,12 @@ STP DELETE*/
         echo("\n     replaceMagentoProductsMultistore 41\n");
     }
 
-#################################################################################################
 
-public function replaceMagentoProductsMultistoreMERGE($coincidence)
+    public function replaceMagentoProductsMultistoreMERGE($coincidence)
     {
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 1\n");
 
-
         $connection = Mage::getModel('core/resource')->getConnection('core_write');
-
 
         $products_temp = Mage::getSingleton('core/resource')->getTableName('products_temp');
         $products_website_temp = Mage::getSingleton('core/resource')->getTableName('products_website_temp');
@@ -7226,8 +6593,8 @@ public function replaceMagentoProductsMultistoreMERGE($coincidence)
         $core_store = Mage::getSingleton('core/resource')->getTableName('core_store');
         $catalog_product_enabled_index = Mage::getSingleton('core/resource')->getTableName('catalog_product_enabled_index');
         $catalog_product_website = Mage::getSingleton('core/resource')->getTableName('catalog_product_website');
-//STP DELETE        $catalogsearch_fulltext          = Mage::getSingleton('core/resource')->getTableName('catalogsearch_fulltext');
-//      $catalogsearch_query             = Mage::getSingleton('core/resource')->getTableName('catalogsearch_query');
+        //$catalogsearch_fulltext = Mage::getSingleton('core/resource')->getTableName('catalogsearch_fulltext');
+        //$catalogsearch_query = Mage::getSingleton('core/resource')->getTableName('catalogsearch_query');
         $catalog_category_entity_varchar = Mage::getSingleton('core/resource')->getTableName('catalog_category_entity_varchar');
 
         $_getProductEntityTypeId = $this->_getProductEntityTypeId();
@@ -7244,7 +6611,6 @@ public function replaceMagentoProductsMultistoreMERGE($coincidence)
         $cat_attr_name = $this->_getCategoryAttributeId('name');
         echo("\n     replaceMagentoProductsMultistoreMERGE 2\n");
 
-
         //clear products, inserting new products and updating old others.
         $query = "
             DELETE cpe
@@ -7254,7 +6620,6 @@ public function replaceMagentoProductsMultistoreMERGE($coincidence)
             WHERE pm.shop_store_product_id IS NOT NULL
                 AND pm.store_product_id IS NULL";
         $result = $this->db_do($query);
-
 
         echo("\n     replaceMagentoProductsMultistoreMERGE 3\n");
 
@@ -7310,9 +6675,7 @@ public function replaceMagentoProductsMultistoreMERGE($coincidence)
         // store_product_id = a.store_product_id,
         // sinch_product_id = a.sinch_product_id
 
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 4\n");
-
 
         //Set enabled
         $result = $this->db_do("
@@ -7357,9 +6720,7 @@ public function replaceMagentoProductsMultistoreMERGE($coincidence)
             ON DUPLICATE KEY UPDATE
                 value = 1");
 
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 6\n");
-
 
         //Unifying products with categories.
         $result = $this->db_do("
@@ -7369,9 +6730,7 @@ public function replaceMagentoProductsMultistoreMERGE($coincidence)
                 ON ccp.product_id = cpe.entity_id
             WHERE cpe.entity_id IS NULL");
 
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 7\n");
-
 
         $root_cats = Mage::getSingleton('core/resource')->getTableName('root_cats');
 
@@ -7388,11 +6747,8 @@ FROM $catalog_category_entity
 ");
         $result = $this->db_do("UPDATE $root_cats SET root_cat = entity_id WHERE CHAR_LENGTH(root_cat) = 0");
 
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 8\n");
 
-
-// !!! $this->_root_cat
         $result = $this->db_do("
             UPDATE IGNORE $catalog_category_product ccp
             LEFT JOIN $catalog_category_entity cce
@@ -7402,9 +6758,7 @@ FROM $catalog_category_entity
             SET ccp.category_id = rc.root_cat
             WHERE cce.entity_id IS NULL");
 
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 9\n");
-
 
         $result = $this->db_do("
             DELETE ccp
@@ -7412,7 +6766,6 @@ FROM $catalog_category_entity
             LEFT JOIN $catalog_category_entity cce
                 ON ccp.category_id = cce.entity_id
             WHERE cce.entity_id IS NULL");
-
 
         $stinch_products_delete = Mage::getSingleton('core/resource')->getTableName('stinch_products_delete');
 
@@ -7429,87 +6782,11 @@ JOIN $stINch_products sp
     ON cpe2.sinch_product_id = sp.sinch_product_id
 )");
 
-
         $result = $this->db_do("DELETE cpe FROM $catalog_product_entity cpe JOIN $stinch_products_delete spd USING(entity_id)");
 
         $result = $this->db_do("DROP TABLE IF EXISTS $stinch_products_delete");
 
-
-//echo("\n\nget out...\n\n");
-//return;
-
-        /**
-         *
-         * echo("\n     replaceMagentoProductsMultistoreMERGE 10\n");
-         *
-         *
-         * // TEMPORARY
-         * $this->db_do(" DROP TABLE IF EXISTS {$catalog_category_product}_for_delete_temp");
-         * $this->db_do("
-         * CREATE TABLE `{$catalog_category_product}_for_delete_temp`
-         * (
-         * `category_id`       int(10) unsigned NOT NULL default '0',
-         * `product_id`        int(10) unsigned NOT NULL default '0',
-         * `store_product_id`  int(10) NOT NULL default '0',
-         * `store_category_id` int(10) NOT NULL default '0',
-         * `new_category_id`   int(10) NOT NULL default '0',
-         *
-         * UNIQUE KEY `UNQ_CATEGORY_PRODUCT` (`category_id`,`product_id`),
-         * KEY `CATALOG_CATEGORY_PRODUCT_CATEGORY` (`category_id`),
-         * KEY `CATALOG_CATEGORY_PRODUCT_PRODUCT` (`product_id`),
-         * KEY `CATALOG_NEW_CATEGORY_PRODUCT_CATEGORY` (`new_category_id`)
-         * )");
-         *
-         * echo("\n     replaceMagentoProductsMultistoreMERGE 11\n");
-         *
-         * $result = $this->db_do("
-         * INSERT INTO {$catalog_category_product}_for_delete_temp
-         * (category_id, product_id, store_product_id)
-         * (SELECT
-         * ccp.category_id,
-         * ccp.product_id,
-         * cpe.store_product_id
-         * FROM $catalog_category_product ccp
-         * JOIN $catalog_product_entity cpe
-         * ON ccp.product_id = cpe.entity_id
-         * WHERE store_product_id IS NOT NULL)");
-         *
-         * echo("\n     replaceMagentoProductsMultistoreMERGE 12\n");
-         *
-         * $result = $this->db_do("
-         * UPDATE {$catalog_category_product}_for_delete_temp ccpfd
-         * JOIN $products_temp p
-         * ON ccpfd.store_product_id = p.store_product_id
-         * SET ccpfd.store_category_id = p.store_category_id
-         * WHERE ccpfd.store_product_id != 0");
-         *
-         * echo("\n     replaceMagentoProductsMultistoreMERGE 13\n");
-         *
-         * $result = $this->db_do("
-         * UPDATE {$catalog_category_product}_for_delete_temp ccpfd
-         * JOIN $stINch_categories_mapping scm
-         * ON ccpfd.store_category_id = scm.store_category_id
-         * SET ccpfd.new_category_id = scm.shop_entity_id
-         * WHERE ccpfd.store_category_id != 0");
-         *
-         * echo("\n     replaceMagentoProductsMultistoreMERGE 14\n");
-         *
-         * $result = $this->db_do("DELETE FROM {$catalog_category_product}_for_delete_temp WHERE category_id = new_category_id");
-         *
-         *
-         *
-         * $result = $this->db_do("
-         * DELETE ccp
-         * FROM $catalog_category_product ccp
-         * JOIN {$catalog_category_product}_for_delete_temp ccpfd
-         * ON ccp.product_id = ccpfd.product_id
-         * AND ccp.category_id = ccpfd.category_id");
-         *
-         * /**/
-
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 15\n");
-
 
         $result = $this->db_do("
             INSERT INTO $catalog_category_product
@@ -7526,9 +6803,7 @@ JOIN $stINch_products sp
             ON DUPLICATE KEY UPDATE
                 product_id = cpe.entity_id");
 
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 15.1 (add multi categories)\n");
-
 
         $result = $this->db_do("
         INSERT INTO $catalog_category_product
@@ -7548,7 +6823,6 @@ JOIN $stINch_products sp
         product_id = cpe.entity_id
         ");
 
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 16\n");
 
         //Indexing products and categories in the shop
@@ -7559,9 +6833,7 @@ JOIN $stINch_products sp
                 ON ccpi.product_id = cpe.entity_id
             WHERE cpe.entity_id IS NULL");
 
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 16.2\n");
-
 
         $result = $this->db_do("
             INSERT INTO $catalog_category_product_index
@@ -7578,7 +6850,6 @@ JOIN $stINch_products sp
             )
             ON DUPLICATE KEY UPDATE
                 visibility = 4");
-
 
         echo("\n     replaceMagentoProductsMultistoreMERGE 17\n");
         $root_cats = Mage::getSingleton('core/resource')->getTableName('root_cats');
@@ -7602,7 +6873,6 @@ JOIN $stINch_products sp
                 visibility = 4");
 
         echo("\n     replaceMagentoProductsMultistoreMERGE 18\n");
-
 
         //Set product name for specific web sites
         $result = $this->db_do("
@@ -7632,7 +6902,6 @@ JOIN $stINch_products sp
 
         echo("\n     replaceMagentoProductsMultistoreMERGE 19\n");
 
-
         // product name for all web sites
         $result = $this->db_do("
             INSERT INTO $catalog_product_entity_varchar
@@ -7651,7 +6920,6 @@ JOIN $stINch_products sp
                 value = b.product_name");
 
         echo("\n     replaceMagentoProductsMultistoreMERGE 20\n");
-
 
         $this->dropHTMLentities($this->_getProductEntityTypeId(), $this->_getProductAttributeId('name'));
         $this->addDescriptions();
@@ -7673,7 +6941,6 @@ JOIN $stINch_products sp
         $this->addEAN();
         $this->addSpecification();
         $this->addManufacturers();
-
 
         echo("\n     replaceMagentoProductsMultistoreMERGE 21\n");
 
@@ -7718,10 +6985,6 @@ JOIN $stINch_products sp
             ON DUPLICATE KEY UPDATE
                 visibility = 4");
 
-
-/////////////////////////////////////echo("    .... DONE\n");return;
-
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 24\n");
 
         $result = $this->db_do("
@@ -7758,7 +7021,6 @@ JOIN $stINch_products sp
 
         echo("\n     replaceMagentoProductsMultistoreMERGE 26\n");
 
-
         $result = $this->db_do("
             DELETE cpw
             FROM $catalog_product_website cpw
@@ -7767,7 +7029,6 @@ JOIN $stINch_products sp
             WHERE cpe.entity_id IS NULL");
 
         echo("\n     replaceMagentoProductsMultistoreMERGE 27\n");
-
 
         $result = $this->db_do("
             INSERT INTO $catalog_product_website
@@ -7783,19 +7044,7 @@ JOIN $stINch_products sp
                 product_id = a.entity_id,
                 website_id = w.website_id");
 
-
-//echo("    .... DONE\n");return;
-
-
         echo("\n     replaceMagentoProductsMultistoreMERGE 28\n");
-
-        // temporary disabled mart@bintime.com
-        //$result = $this->db_do("
-        //      UPDATE catalog_category_entity_int a
-        //      SET a.value = 0
-        //      WHERE a.attribute_id = 32
-        //");
-
 
         //Adding tax class "Taxable Goods"
         $result = $this->db_do("
@@ -7951,7 +7200,6 @@ JOIN $stINch_products sp
 
         echo("\n     replaceMagentoProductsMultistoreMERGE 36\n");
 
-
         /* STP DELETE
         //Refresh fulltext search
         $result = $this->db_do("DROP TABLE IF EXISTS {$catalogsearch_fulltext}_tmp");
@@ -8074,11 +7322,9 @@ STP DELETE*/
         echo("\n     replaceMagentoProductsMultistoreMERGE 41\n");
     }
 
-#################################################################################################
 
     function ParseProductsPicturesGallery()
     {
-
         $parse_file = $this->varDir . FILE_PRODUCTS_PICTURES_GALLERY;
         if (filesize($parse_file)) {
             $this->_LOG("Start parse " . FILE_PRODUCTS_PICTURES_GALLERY);
@@ -8115,13 +7361,10 @@ STP DELETE*/
             $this->_LOG("Wrong file" . $parse_file);
         }
         $this->_LOG(" ");
-
     }
-#################################################################################################
 
     function ParseRestrictedValues()
     {
-
         $parse_file = $this->varDir . FILE_RESTRICTED_VALUES;
         if (filesize($parse_file) || $this->_ignore_restricted_values) {
             $this->_LOG("Start parse " . FILE_RESTRICTED_VALUES);
@@ -8153,11 +7396,8 @@ STP DELETE*/
         $this->_LOG(" ");
     }
 
-#################################################################################################
-
     function ParseStockAndPrices()
     {
-
         $parse_file = $this->varDir . FILE_STOCK_AND_PRICES;
 
         if (filesize($parse_file)) {
@@ -8231,8 +7471,6 @@ STP DELETE*/
         $this->_LOG(" ");
     }
 
-#################################################################################################
-
     function replaceMagentoProductsStockPrice()
     {
         //Add stock
@@ -8305,7 +7543,6 @@ STP DELETE*/
                               ");
 
         //Add prices
-        //$result = $this->db_do("truncate  catalog_product_entity_decimal");
         $result = $this->db_do("DELETE cped
                                 FROM " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_decimal') . " cped
                                 LEFT JOIN " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity') . " cpe
@@ -8358,7 +7595,6 @@ STP DELETE*/
                                     value = b.price
                 ");
         //Add cost
-        //                $result = $this->db_do("truncate  catalog_product_entity_decimal");
         $result = $this->db_do("
                                 INSERT INTO " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_decimal') . " (
                                     entity_type_id,
@@ -8406,7 +7642,6 @@ STP DELETE*/
                               ");
 
         //make products enable in FO
-        //      $result = $this->db_do(" truncate catalog_product_index_price");
         $result = $this->db_do("DELETE cpip
                                 FROM " . Mage::getSingleton('core/resource')->getTableName('catalog_product_index_price') . " cpip
                                 LEFT JOIN " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity') . " cpe
@@ -8452,7 +7687,34 @@ STP DELETE*/
         }
     }
 
-#################################################################################################
+    private function _dropFeatureResultTables()
+    {
+        $dbName = Mage::getConfig()->getResourceConnectionConfig('core_setup')->dbname;
+        $filterResultTablePrefix = Mage::getSingleton('core/resource')->getTableName('SinchFilterResult_');
+
+        $resultTables = $this->db_do("SHOW TABLES LIKE '$filterResultTablePrefix%'");
+
+        if (empty($resultTables->num_rows)) {
+            return false;
+        }
+
+        $dropSqls = [];
+        $dropSqls[] = "SET FOREIGN_KEY_CHECKS = 0;";
+        $dropSqls[] = "SET GROUP_CONCAT_MAX_LEN=150000;";
+        $dropSqls[] = "SET @tbls = (SELECT GROUP_CONCAT(TABLE_NAME)
+                FROM information_schema.TABLES
+                WHERE TABLE_SCHEMA = '$dbName' AND TABLE_NAME LIKE '$filterResultTablePrefix%');";
+        $dropSqls[] = "SET @delStmt = CONCAT('DROP TABLE ',  @tbls);";
+        $dropSqls[] = "PREPARE stmt FROM @delStmt;";
+        $dropSqls[] = "EXECUTE stmt;";
+        $dropSqls[] = "DEALLOCATE PREPARE stmt;";
+        $dropSqls[] = "SET FOREIGN_KEY_CHECKS = 1;";
+        foreach ($dropSqls as $key => $dropSql) {
+            $this->db_do($dropSql);
+        }
+
+        return true;
+    }
 
     private function _cleanCateoryProductFlatTable()
     {
@@ -8475,8 +7737,6 @@ STP DELETE*/
 
     }
 
-#################################################################################################
-
     public function runIndexer()
     {
         $this->db_do("DELETE FROM " . Mage::getSingleton('core/resource')->getTableName('core_url_rewrite'));
@@ -8489,7 +7749,77 @@ STP DELETE*/
         exec(PHP_RUN_STRING . ' ' . $this->shellDir . 'indexer.php reindexall');
     }
 
-#################################################################################################
+    public function reindexManufacturers()
+    {
+        if (!Mage::helper('core')->isModuleEnabled('Magebuzz_Manufacturer')) {
+            return false;
+        }
+
+        $helper = Mage::helper('manufacturer');
+        $manufacturerOptions = $helper->getManufacturerOptions();
+        Mage::getModel('manufacturer/manufacturer')->getAllManufacturer($manufacturerOptions);
+
+        foreach ($manufacturerOptions as $manufacturer) {
+            if ($manufacturer['value']) {
+                $model = Mage::getModel('manufacturer/manufacturer');
+                $model->load($manufacturer['value'], 'option_id');
+                $identifier = $helper->generateIdentifier($manufacturer['label']);
+                $storeId = 0;
+                if (!$model->getId()) {
+                    $model->setName($manufacturer['label'])
+                        ->setOptionId($manufacturer['value'])
+                        ->setIdentifier($identifier)
+                        ->setStoreId($storeId)
+                        ->setStatus(1)
+                        ->save();
+                } else {
+                    $model->setName($manufacturer['label'])
+                        ->setIdentifier($identifier)
+                        ->setStoreId($storeId)
+                        ->setStatus(1)
+                        ->save();
+                }
+            }
+        }
+
+        // Reindex url rewrites
+        $urls = Mage::getModel('core/url_rewrite')->getCollection()
+            ->addFieldToFilter('id_path', array('like' => 'manufacturer%'));
+        if (count($urls)) {
+            foreach ($urls as $item) {
+                $item->delete();
+            }
+        }
+        $collection = Mage::getModel('manufacturer/manufacturer')->getCollection();
+        if (count($collection)) {
+            $helper = Mage::helper('manufacturer');
+            $storeId = 0;
+            foreach ($collection as $item) {
+                if ($item->getIdentifier()) {
+                    $rewriteModel = Mage::getModel('core/url_rewrite');
+                    $identifier = $helper->generateIdentifier($item->getName());
+                    $id_path = 'manufacturer/' . $item->getId();
+                    $request_path = $helper->getConfigTextRouter() . '/' . $identifier;
+                    $rewriteModel->loadByRequestPath($request_path);
+                    if ($rewriteModel->getId()) {
+                        $identifier = $identifier . '-' . $item->getId();
+                        $request_path = $request_path . '-' . $item->getId();
+                    }
+                    $urlRewrite = Mage::getModel('core/url_rewrite');
+                    $urlRewrite->setData('id_path', 'manufacturer/' . $item->getId());
+                    $urlRewrite->setData('target_path', 'manufacturer/index/view/id/' . $item->getId());
+                    $urlRewrite->setStoreId($storeId);
+                    $urlRewrite->setData('request_path', $request_path);
+                    $urlRewrite->save();
+
+                    $item->setIdentifier($identifier)->save();
+                }
+            }
+        }
+
+        return true;
+    }
+
 
     function cron_start_full_import()
     {
@@ -8497,15 +7827,12 @@ STP DELETE*/
         $this->run_sinch_import();
     }
 
-#################################################################################################
 
     function cron_start_stock_price_import()
     {
         $this->import_run_type = 'CRON';
         $this->run_stock_price_sinch_import();
     }
-
-##################################################################################################
 
     function run_stock_price_sinch_import()
     {
@@ -8541,12 +7868,11 @@ STP DELETE*/
 
         if ($this->is_imort_not_run() && $this->is_full_import_have_been_run()) {
             try {
-                //$this->InitImportStatuses();
                 $q = "SELECT GET_LOCK('sinchimport', 30)";
-                $quer = $this->db_do($q);
+                $this->db_do($q);
                 $import = $this;
                 $import->addImportStatus('Stock Price Start Import');
-                echo "Upload Files <br>";
+                echo "Upload Files\n";
                 $this->files = array(
                     FILE_STOCK_AND_PRICES,
                     FILE_PRICE_RULES
@@ -8555,12 +7881,11 @@ STP DELETE*/
                 $import->UploadFiles();
                 $import->addImportStatus('Stock Price Upload Files');
 
-                echo "Parse Stock And Prices <br>";
-                //exit;
+                echo "Parse Stock And Prices\n";
                 $import->ParseStockAndPrices();
                 $import->addImportStatus('Stock Price Parse Products');
 
-                echo "Apply Customer Group Price <br>";
+                echo "Apply Customer Group Price\n";
                 //$import->ParsePriceRules();
                 //$import->AddPriceRules();
                 //$import->ApplyCustomerGroupPrice();
@@ -8574,35 +7899,33 @@ STP DELETE*/
 
 
                 Mage::log("Finish Stock & Price Sinch import", null, $this->_logFile);
-                echo "Finish Stock & Price Sinch import<br>";
+                echo "Finish Stock & Price Sinch import\n";
 
                 Mage::log("Start indexing  Stock & Price", null, $this->_logFile);
-                echo "Start indexing  Stock & Price<br>";
+                echo "Start indexing  Stock & Price\n";
                 $import->_cleanCateoryProductFlatTable();
                 $import->runStockPriceIndexer();
                 Mage::log("Finish indexing  Stock & Price", null, $this->_logFile);
                 $import->addImportStatus('Stock Price Indexing data');
                 $import->addImportStatus('Stock Price Finish import', 1);
-                echo "Finish indexing  Stock & Price<br>";
+                echo "Finish indexing  Stock & Price\n";
 
                 $q = "SELECT RELEASE_LOCK('sinchimport')";
-                $quer = $this->db_do($q);
+                $this->db_do($q);
             } catch (Exception $e) {
                 $this->set_import_error_reporting_message($e);
             }
         } else {
             if (!$this->is_imort_not_run()) {
                 Mage::log("Sinchimport already run", null, $this->_logFile);
-                echo "Sinchimport already run<br>";
+                echo "Sinchimport already run\n";
             } else {
                 Mage::log("Full import have never finished with success", null, $this->_logFile);
-                echo "Full import have never finished with success<br>";
+                echo "Full import have never finished with success\n";
             }
         }
 
     }
-
-##################################################################################################
 
     function is_full_import_have_been_run()
     {
@@ -8618,14 +7941,10 @@ STP DELETE*/
         }
     }
 
-##################################################################################################
-
     public function runStockPriceIndexer()
     {
         exec(PHP_RUN_STRING . ' ' . $this->shellDir . 'indexer.php --reindex catalog_product_price,cataloginventory_stock');
     }
-
-##################################################################################################
 
     function ParsePriceRules()
     {
@@ -8652,7 +7971,6 @@ STP DELETE*/
                           )
                         ");
             if (!$this->_ignore_price_rules) {
-
                 $this->db_do("LOAD DATA LOCAL INFILE '" . $parse_file . "'
                               INTO TABLE " . Mage::getSingleton('core/resource')->getTableName('price_rules_temp') . "
                               FIELDS TERMINATED BY '" . $this->field_terminated_char . "'
@@ -8719,8 +8037,6 @@ STP DELETE*/
         $this->_LOG(" ");
     }
 
-#################################################################################################
-
     function AddPriceRules()
     {
         if (!$this->check_table_exist('import_pricerules_standards')) {
@@ -8764,16 +8080,11 @@ STP DELETE*/
                                     fixed               = a.fixed,
                                     final_price         = a.final_price
                               ");
-
     }
-
-#################################################################################################
 
     private function check_table_exist($table)
     {
-
         $q = "SHOW TABLES LIKE \"%" . Mage::getSingleton('core/resource')->getTableName($table) . "%\"";
-//        echo $q;
         $quer = $this->db_do($q);
         $i = 0;
         while ($row = mysqli_fetch_array($quer)) {
@@ -8781,8 +8092,6 @@ STP DELETE*/
         }
         return ($i);
     }
-
-#################################################################################################
 
     function ApplyCustomerGroupPrice()
     {
@@ -8794,9 +8103,8 @@ STP DELETE*/
         if (is_array($pricerulesArray)) {
             $this->db_do("TRUNCATE TABLE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_group_price'));
             $this->db_do("TRUNCATE TABLE " . Mage::getSingleton('core/resource')->getTableName('catalog_product_index_group_price'));
-
         }
-//        $i=1;
+
         foreach ($pricerulesArray as $pricerule) {
             $this->_LOG("Calculation group price for rule " . $pricerule['id'] . "
                         (\nname          =   " . $pricerule['name'] . "
@@ -8833,11 +8141,8 @@ STP DELETE*/
 
             if (!empty($pricerule['vendor_id'])) $where .= " AND a.manufacturer_id = " . $pricerule['vendor_id'];
 
-            //if(!empty($pricerule['vendor_product_id']))
-            //  $where.= " AND vendor_product_id = ".$pricerule['vendor_product_id'];
             if (!empty($pricerule['product_entity_id'])) $where .= " AND a.product_id = '" . $pricerule['product_entity_id'] . "'";
 
-//            if (!empty($pricerule['vendor_product_id'])) $where.= " AND a.sku = '".$pricerule['vendor_product_id']."'";
             if (!empty($pricerule['vendor_product_id'])) $where .= " AND a.sku IN (" . $vendor_product_id_str . ")";
 
             if (!empty($pricerule['allow_subcat'])) {
@@ -8849,23 +8154,12 @@ STP DELETE*/
                 if (!empty($pricerule['category_id'])) $where .= " AND a.category_id = " . $pricerule['category_id'];
             }
 
-
-//            if (!empty($pricerule['store_id'])) $where.= " AND store_id = ".$pricerule['store_id'];
-
-//            if (!empty($pricerule['distributor_id'])) $where.= " AND distributor_id = ".$pricerule['distributor_id'];
-
-            //          $this->createCalcPriceFunc();
-            //echo "\n\nAAAAAAAAAAAAAAAAAAAAa".$pricerule['customergroup_id']."----------";
             $customer_group_id_array = array();
             if (strstr($pricerule['customergroup_id'], ",")) {
-                //echo "55555555555555555";
                 $customer_group_id_array = explode(",", $pricerule['customergroup_id']);
             } else {
                 $customer_group_id_array[0] = $pricerule['customergroup_id'];
             }
-//              var_dump($pricerule);
-//              echo "CCCCCCC\n";
-//              var_dump($customer_group_id_array);
             foreach ($customer_group_id_array as $customer_group_id) {
                 if (isset($customer_group_id) && $customer_group_id >= 0) {
                     $query = "
@@ -8896,7 +8190,6 @@ STP DELETE*/
                                         " . $fixed . ",
                                         " . $final_price . ")
                     ";
-//              echo "\n\n".$query;
                     $this->db_do($query);
                     if (!empty($pricerule['store_id']) && $pricerule['store_id'] > 0) {
                         $query = "
@@ -8925,21 +8218,15 @@ STP DELETE*/
                               " . $fixed . ",
                               " . $final_price . ")
                       ";
-//                  echo "\n\n".$query;
                         $this->db_do($query);
-
                     }
                 }
             }
         }
-
     }
-
-#################################################################################################
 
     function _getProductsForCustomerGroupPrice()
     {
-        // TEMPORARY
         $this->db_do(" DROP TABLE IF EXISTS " . Mage::getSingleton('core/resource')->getTableName('stINch_products_for_customer_group_price_temp'));
         $this->db_do("
                 CREATE TABLE " . Mage::getSingleton('core/resource')->getTableName('stINch_products_for_customer_group_price_temp') . "
@@ -8985,10 +8272,7 @@ STP DELETE*/
                  AND cped.attribute_id = " . $this->_getProductAttributeId('price') . "
                  SET pfcgpt.price = cped.value
         ");
-
-
     }
-#################################################################################################
 
     protected function _getPricerulesList()
     {
@@ -9004,15 +8288,11 @@ STP DELETE*/
         return $rulesArray;
     }
 
-#################################################################################################
-
     private function get_all_children_cat($entity_id)
     {
         $children_cat = "'" . $entity_id . "'" . $this->get_all_children_cat_recursive($entity_id);
         return ($children_cat);
     }
-
-#################################################################################################
 
     private function get_all_children_cat_recursive($entity_id)
     {
@@ -9028,11 +8308,8 @@ STP DELETE*/
         return ($children_cat);
     }
 
-#################################################################################################
-
     function getProductDescription($entity_id)
     {
-
         $this->loadProductParams($entity_id);
         $this->loadProductStarfeatures($entity_id);
         $this->loadGalleryPhotos($entity_id);
@@ -9043,14 +8320,11 @@ STP DELETE*/
         return true;
     }
 
-#################################################################################################
-
     private function loadProductParams($entity_id)
     {
         $store_product_id = $this->getStoreProductIdByEntity($entity_id);
         if (!$store_product_id) {
-            //      echo "AAAAAAA"; exit;
-            return;
+            return false;
         }
         $q = "SELECT
                 sinch_product_id,
@@ -9071,7 +8345,7 @@ STP DELETE*/
 
         $this->productDescription = (string)substr($product['description'], 50, 0);
         $this->fullProductDescription = (string)$product['description'];
-        $this->lowPicUrl = (string)$product["medium_image_url"];//thumb_image_url"];
+        $this->lowPicUrl = (string)$product["medium_image_url"];
         $this->highPicUrl = (string)$product["main_image_url"];
         $this->productName = (string)$product["product_name"];
         $this->productId = (string)$product['product_sku'];
@@ -9094,30 +8368,19 @@ STP DELETE*/
         while ($row = mysqli_fetch_array($quer)) {
             $EANarr[] = $row['ean_code'];
         }
-        //     $prodEAN = $productTag->EANCode;
         $EANstr = '';
-        /*     $EANarr=null;
-               foreach($prodEAN as $ellEAN){
-               $EANarr[]=$ellEAN['EAN'];
-               }
-         */
         $EANstr = implode(", ", $EANarr);
-        $this->EAN = (string)$EANstr;//$productTag->EANCode['EAN'];
+        $this->EAN = (string)$EANstr;
     }
-
-#################################################################################################
 
     private function getStoreProductIdByEntity($entity_id)
     {
         $q = $this->db_do("SELECT store_product_id
                          FROM " . Mage::getSingleton('core/resource')->getTableName('stINch_products_mapping') . "
-                         WHERE entity_id=" . $entity_id);
+                         WHERE entity_id=" . $entity_id, true);
         $res = mysqli_fetch_array($q);
-        //  echo $entity_id."AAAA".$res['store_product_id']; exit;
         return ($res['store_product_id']);
     }
-
-#################################################################################################
 
     private function loadProductStarfeatures($entity_id)
     {
@@ -9138,25 +8401,18 @@ STP DELETE*/
         $this->productDescriptionList = $descriptionArray;
     }
 
-#################################################################################################
-
     /**
      * load Gallery array from XML
      */
     public function loadGalleryPhotos($entity_id)
     {
-        /*$galleryPhotos = $this->simpleDoc->Product->ProductGallery->ProductPicture;
-          if (!count($galleryPhotos)){
-          return false;
-          }
-         */
         $store_product_id = $this->getStoreProductIdByEntity($entity_id);
         if (!$store_product_id) {
             return;
         }
         $q = $this->db_do("SELECT COUNT(*) AS cnt
                          FROM " . Mage::getSingleton('core/resource')->getTableName('stINch_products_pictures_gallery') . "
-                         WHERE store_product_id=" . $store_product_id);
+                         WHERE store_product_id=" . $store_product_id, true);
 
         $res = mysqli_fetch_array($q);
         if (!$res || !$res['cnt']) {
@@ -9168,11 +8424,11 @@ STP DELETE*/
             FROM " . Mage::getSingleton('core/resource')->getTableName('stINch_products_pictures_gallery') . "
             WHERE store_product_id=" . $store_product_id;
 
-        $res = $this->db_do($q);
+        $res = $this->db_do($q, true);
 
         while ($photo = mysqli_fetch_array($res)) {
-            $picHeight = (int)500;//$photo["PicHeight"];
-            $picWidth = (int)500;//$photo["PicWidth"];
+            $picHeight = (int)500;
+            $picWidth = (int)500;
             $thumbUrl = (string)$photo["ThumbPic"];
             $picUrl = (string)$photo["Pic"];
 
@@ -9184,8 +8440,6 @@ STP DELETE*/
             ));
         }
     }
-
-#################################################################################################
 
     private function loadRelatedProducts($entity_id)
     {
@@ -9214,7 +8468,6 @@ STP DELETE*/
                 ON st_prod.sinch_manufacturer_id=st_manuf.sinch_manufacturer_id
             WHERE st_rel_prod.sinch_product_id=" . $this->sinchProductId;
 
-        //  echo $q;
         $quer = $this->db_do($q);
         while ($row = mysqli_fetch_array($quer)) {
 
@@ -9230,84 +8483,60 @@ STP DELETE*/
         }
     }
 
-#################################################################################################
-
     public function getProductName()
     {
         return $this->productName;
     }
-
-#################################################################################################
 
     public function getProductDescriptionList()
     {
         return $this->productDescriptionList;
     }
 
-#################################################################################################
-
     public function getProductSpecifications()
     {
         return $this->specifications;
     }
-
-#################################################################################################
 
     public function getShortProductDescription()
     {
         return $this->productDescription;
     }
 
-#################################################################################################
-
     public function getFullProductDescription()
     {
         return $this->fullProductDescription;
     }
-
-#################################################################################################
 
     public function getLowPicUrl()
     {
         return $this->highPicUrl;
     }
 
-#################################################################################
-
     public function getRelatedProducts()
     {
         return $this->relatedProducts;
     }
-
-#################################################################################################
 
     public function getVendor()
     {
         return $this->vendor;
     }
 
-##################################################################################################
-
     public function getMPN()
     {
         return $this->productId;
     }
-
-##################################################################################################
 
     public function getEAN()
     {
         return $this->EAN;
     }
 
-##################################################################################################
-
     public function getGalleryPhotos()
     {
         return $this->galleryPhotos;
     }
-
-##################################################################################################
 
     public function reloadProductImage($entity_id)
     {
@@ -9335,7 +8564,6 @@ STP DELETE*/
                                     value = b.main_image_url
                               ");
 
-
         // image for specific web sites
         $result = $this->db_do("
                                 INSERT INTO " . Mage::getSingleton('core/resource')->getTableName('catalog_product_entity_varchar') . " (
@@ -9359,7 +8587,6 @@ STP DELETE*/
                                 ON DUPLICATE KEY UPDATE
                                     value = b.main_image_url
                               ");
-
 
         // small_image for specific web sites
         $result = $this->db_do("
@@ -9385,7 +8612,6 @@ STP DELETE*/
                                 ON DUPLICATE KEY UPDATE
                                     value = b.main_image_url
                               ");
-
 
         // small_image for all web sites
         $result = $this->db_do("
@@ -9413,14 +8639,8 @@ STP DELETE*/
                 ");
     }
 
-##################################################################################################
-
     function valid_utf($string, $new_line = true)
     {
-        /*              if($new_line == true){
-                        $string = preg_replace('/\\\n/',"\n",$string);
-                        }
-         */
         $string = preg_replace('/™/', '&#8482;', $string);
         $string = preg_replace("/®/", '&reg;', $string);
         $string = preg_replace("/≈/", '&asymp;', $string);
@@ -9437,11 +8657,7 @@ STP DELETE*/
         $string = preg_replace('/\xe2\x80\x9d/', ' ', $string);
 
         return utf8_decode($string);
-
-        //              return $string;
     }
-
-    ##################################################################################################
 
     function set_imports_failed()
     {
@@ -9449,10 +8665,6 @@ STP DELETE*/
                       SET global_status_import='Failed'
                       WHERE global_status_import='Run'");
     }
-##################################################################################################
-
-
-##################################################################################################
 
     function getImportStatusHistory()
     {
@@ -9479,11 +8691,7 @@ STP DELETE*/
             }
         }
         return $StatusHistory_arr;
-    } // public function getImportEnvironment()
-##################################################################################################
-
-
-##################################################################################################
+    }
 
     function getDateOfLatestSuccessImport()
     {
@@ -9493,11 +8701,7 @@ STP DELETE*/
             ORDER BY id DESC LIMIT 1";
         $imp_date = mysqli_fetch_array($this->db_do($q));
         return $imp_date['start_import'];
-    } // public function getImportEnvironment()
-##################################################################################################
-
-
-##################################################################################################
+    }
 
     function getDataOfLatestImport()
     {
@@ -9514,11 +8718,7 @@ STP DELETE*/
             ORDER BY id DESC LIMIT 1";
         $imp_status = mysqli_fetch_array($this->db_do($q));
         return $imp_status;
-    } // public function getImportEnvironment()
-##################################################################################################
-
-
-##################################################################################################
+    }
 
     function getImportStatuses()
     {
@@ -9526,22 +8726,23 @@ STP DELETE*/
             FROM " . $this->import_status_table . "
             ORDER BY id LIMIT 1";
         $quer = $this->db_do($q);
+
+        $messages = array('message' => '', 'id' => 0, 'finished' => 0);
+
         if ($row = mysqli_fetch_array($quer)) {
             $messages = array('message' => $row['message'], 'id' => $row['id'], 'finished' => $row['finished']);
             $id = $row['id'];
         }
-        if ($id) {
+
+        if (!empty($id)) {
             $q = "DELETE FROM " . $this->import_status_table . " WHERE id=" . $id;
             $this->db_do($q);
         }
+
         return $messages;
-    } // public function getImportEnvironment()
-##################################################################################################
+    }
 
-
-##################################################################################################
-
-public function checkMemory()
+    public function checkMemory()
     {
         $check_code = 'memory';
 
@@ -9549,7 +8750,6 @@ public function checkMemory()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
 
         $Caption = $row['caption'];
@@ -9585,15 +8785,15 @@ public function checkMemory()
                 $value = (int)substr($val, 0, strpos($val, ' kB'));
                 $measure = substr($val, strpos($val, ' kB'));
 
-                $retvalue['memory']['value'] = (integer)(((float)$value) / 1024); // (float)$value
-                $retvalue['memory']['measure'] = 'MB'; // $measure;
+                $retvalue['memory']['value'] = (integer)(((float)$value) / 1024);
+                $retvalue['memory']['measure'] = 'MB';
             }
         }
 
         $errmsg = '';
         $fixmsg = '';
         if ($retvalue['memory']['value'] <= $CheckValue) {
-            $errmsg = sprintf($ErrorMessage, $retvalue['memory']['value']); //." ".$retvalue['memory']['value']." ".$retvalue['memory']['measure'];
+            $errmsg = sprintf($ErrorMessage, $retvalue['memory']['value']);
             $fixmsg = sprintf($FixMessage, " " . $CheckValue . " " . $CheckMeasure);
             $retvalue['memory']['status'] = 'error';
         } else {
@@ -9609,13 +8809,9 @@ public function checkMemory()
             $errmsg,
             $fixmsg
         );
-    } // public function getImportEnvironment()
-##################################################################################################
+    }
 
-
-##################################################################################################
-
-public function checkLoaddata()
+    public function checkLoaddata()
     {
         $check_code = 'loaddata';
 
@@ -9623,7 +8819,6 @@ public function checkLoaddata()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -9639,12 +8834,11 @@ public function checkLoaddata()
         $row = $result->fetch(PDO::FETCH_ASSOC);
         $value = $row['Value'];
 
-
         $errmsg = '';
         $fixmsg = '';
         if ($value != $CheckValue) {
             $errmsg .= $ErrorMessage . " " . $value . " " . $CheckMeasure;
-            $fixmsg .= $FixMessage; // ." ".$CheckValue." ".$CheckMeasure
+            $fixmsg .= $FixMessage;
             $status = 'error';
         } else {
             $errmsg .= 'none';
@@ -9656,13 +8850,9 @@ public function checkLoaddata()
         array_push($ret, $status, $Caption, $CheckValue, $value, $CheckMeasure, $errmsg, $fixmsg);
 
         return $ret;
-    } // public function getImportEnvironment()
-##################################################################################################
+    }
 
-
-##################################################################################################
-
-public function checkPhpsafemode()
+    public function checkPhpsafemode()
     {
         $check_code = 'phpsafemode';
 
@@ -9670,7 +8860,6 @@ public function checkPhpsafemode()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -9704,13 +8893,9 @@ public function checkPhpsafemode()
         array_push($ret, $status, $Caption, $CheckValue, $value, $CheckMeasure, $errmsg, $fixmsg);
 
         return $ret;
-    } // public function getImportEnvironment()
-##################################################################################################
+    }
 
-
-##################################################################################################
-
-public function checkWaittimeout()
+    public function checkWaittimeout()
     {
         $check_code = 'waittimeout';
 
@@ -9718,7 +8903,6 @@ public function checkWaittimeout()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -9750,13 +8934,9 @@ public function checkWaittimeout()
         array_push($ret, $status, $Caption, $CheckValue, $value, $CheckMeasure, $errmsg, $fixmsg);
 
         return $ret;
-    } // public function checkChmodwgetcronphpfile()
-##################################################################################################
+    }
 
-
-##################################################################################################
-
-public function checkInnodbbufferpoolsize()
+    public function checkInnodbbufferpoolsize()
     {
         $check_code = 'innodbbufpool';
 
@@ -9764,7 +8944,6 @@ public function checkInnodbbufferpoolsize()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -9796,13 +8975,9 @@ public function checkInnodbbufferpoolsize()
         array_push($ret, $status, $Caption, $CheckValue, $value, $CheckMeasure, $errmsg, $fixmsg);
 
         return $ret;
-    } // public function checkChmodwgetcronphpfile()
-##################################################################################################
+    }
 
-
-##################################################################################################
-
-public function checkPhprunstring()
+    public function checkPhprunstring()
     {
         $check_code = 'php5run';
 
@@ -9810,7 +8985,6 @@ public function checkPhprunstring()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -9828,7 +9002,7 @@ public function checkPhprunstring()
 
         if (!defined('PHP_RUN_STRING')) {
             $errmsg .= "You haven't installed PHP CLI";
-            $fixmsg .= "Install PHP CLI."; // ." ".$CheckValue." ".$CheckMeasure
+            $fixmsg .= "Install PHP CLI.";
             $status = 'error';
         }
 
@@ -9841,13 +9015,9 @@ public function checkPhprunstring()
             $errmsg,
             $fixmsg
         );
-    } // public function getImportEnvironment()
-##################################################################################################
+    }
 
-
-##################################################################################################
-
-public function checkChmodwgetdatafile()
+    public function checkChmodwgetdatafile()
     {
         $check_code = 'chmodwget';
 
@@ -9855,7 +9025,6 @@ public function checkChmodwgetdatafile()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -9880,10 +9049,9 @@ public function checkChmodwgetdatafile()
 
         $errmsg = '';
         $fixmsg = '';
-        //if ($value <= $CheckValue) {
         if (($value_own < $CheckValue_own) || ($value_group < $CheckValue_group) || ($value_other < $CheckValue_other)) {
-            $errmsg .= $ErrorMessage; // ." ".$value." ".$CheckMeasure
-            $fixmsg .= $FixMessage; // ." ".$CheckValue." ".$CheckMeasure
+            $errmsg .= $ErrorMessage;
+            $fixmsg .= $FixMessage;
             $status = 'error';
         } else {
             $errmsg .= 'none';
@@ -9895,13 +9063,9 @@ public function checkChmodwgetdatafile()
         array_push($ret, $status, $Caption, $CheckValue, $value, $CheckMeasure, $errmsg, $fixmsg);
 
         return $ret;
-    } // public function getImportEnvironment()
-##################################################################################################
+    }
 
-
-##################################################################################################
-
-public function checkChmodwgetcronphpfile()
+    public function checkChmodwgetcronphpfile()
     {
         $check_code = 'chmodcronphp';
 
@@ -9909,7 +9073,6 @@ public function checkChmodwgetcronphpfile()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -9934,10 +9097,9 @@ public function checkChmodwgetcronphpfile()
 
         $errmsg = '';
         $fixmsg = '';
-        //if ($value <= $CheckValue) {
         if (($value_own < $CheckValue_own) || ($value_group < $CheckValue_group) || ($value_other < $CheckValue_other)) {
-            $errmsg .= $ErrorMessage; // ." ".$value." ".$CheckMeasure
-            $fixmsg .= $FixMessage; // ." ".$CheckValue." ".$CheckMeasure
+            $errmsg .= $ErrorMessage;
+            $fixmsg .= $FixMessage;
             $status = 'error';
         } else {
             $errmsg .= 'none';
@@ -9950,12 +9112,8 @@ public function checkChmodwgetcronphpfile()
 
         return $ret;
     }
-##################################################################################################
 
-
-##################################################################################################
-
-public function checkChmodwgetcronshfile()
+    public function checkChmodwgetcronshfile()
     {
         $check_code = 'chmodcronsh';
 
@@ -9963,7 +9121,6 @@ public function checkChmodwgetcronshfile()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -9988,10 +9145,9 @@ public function checkChmodwgetcronshfile()
 
         $errmsg = '';
         $fixmsg = '';
-        //if ($value <= $CheckValue) {
         if (($value_own < $CheckValue_own) || ($value_group < $CheckValue_group) || ($value_other < $CheckValue_other)) {
-            $errmsg .= $ErrorMessage; // ." ".$value." ".$CheckMeasure
-            $fixmsg .= $FixMessage; // ." ".$CheckValue." ".$CheckMeasure
+            $errmsg .= $ErrorMessage;
+            $fixmsg .= $FixMessage;
             $status = 'error';
         } else {
             $errmsg .= 'none';
@@ -10005,9 +9161,7 @@ public function checkChmodwgetcronshfile()
         return $ret;
     }
 
-    #################################################################################################
-
-public function checkProcedure()
+    public function checkProcedure()
     {
         $check_code = 'routine';
 
@@ -10015,7 +9169,6 @@ public function checkProcedure()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -10035,8 +9188,8 @@ public function checkProcedure()
         $errmsg = '';
         $fixmsg = '';
         if ($value != $CheckValue) {
-            $errmsg .= $ErrorMessage; // ." ".$value." ".$CheckMeasure
-            $fixmsg .= $FixMessage; // ." ".$CheckValue." ".$CheckMeasure
+            $errmsg .= $ErrorMessage;
+            $fixmsg .= $FixMessage;
             $status = 'error';
         } else {
             $errmsg .= 'none';
@@ -10050,9 +9203,7 @@ public function checkProcedure()
         return $ret;
     }
 
-    #################################################################################################
-
-public function checkConflictsWithInstalledModules()
+    public function checkConflictsWithInstalledModules()
     {
         $check_code = 'conflictwithinstalledmodules';
 
@@ -10060,7 +9211,6 @@ public function checkConflictsWithInstalledModules()
         $tableName = Mage::getSingleton('core/resource')->getTableName('stINch_sinchcheck');
         $result = $conn->query("SELECT * FROM $tableName WHERE check_code = '$check_code'");
         $row = $result->fetch(PDO::FETCH_ASSOC);
-        //echo " [".$row['id']."] [".$row['caption']."] [".$row['descr']."] [".$row['check_code']."] [".$row['check_value']."] [".$row['check_measure']."] [".$row['error_msg']."] [".$row['fix_msg']."] <br>";
 
         $Caption = $row['caption'];
         $CheckValue = $row['check_value'];
@@ -10070,85 +9220,71 @@ public function checkConflictsWithInstalledModules()
 
         $retvalue = array();
         $retvalue["'$check_code'"] = array();
-
-        /*      $conn = Mage::getSingleton('core/resource')->getConnection('core_read');
-        $storedFunctionName = Mage::getSingleton('core/resource')->getTableName('filter_sinch_products_s');
-        $result = $conn->query("SHOW PROCEDURE STATUS LIKE '$storedFunctionName'");
-        $row = $result->fetch(PDO::FETCH_ASSOC);
-        $value = $row['Name'];
-*/
         $config_file = (Mage::app()->getConfig()->getNode()->asXML());
 
         $errmsg = $ErrorMessage;
         $fixmsg = $FixMessage;
-        /*
-        if ($value != $CheckValue) {
-            $errmsg .= $ErrorMessage; // ." ".$value." ".$CheckMeasure
-            $fixmsg .= $FixMessage; // ." ".$CheckValue." ".$CheckMeasure
-            $status = 'error';
-*/
         $status = 'OK';
 
         if (!strstr($config_file, '<image>Bintime_Sinchimport_Helper_Image</image>')) {
-            $errmsg .= " Can't find <image>Bintime_Sinchimport_Helper_Image</image> in  <helpers><catalog></catalog></helpers>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <image>Bintime_Sinchimport_Helper_Image</image> in  <helpers><catalog></catalog></helpers>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
 
         if (!strstr($config_file, '<product_image>Bintime_Sinchimport_Model_Image</product_image>')) {
-            $errmsg .= " Can't find <product_image>Bintime_Sinchimport_Model_Image</product_image> in  <models><catalog></catalog></models>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <product_image>Bintime_Sinchimport_Model_Image</product_image> in  <models><catalog></catalog></models>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
 
         if (!strstr($config_file, '<category>Bintime_Sinchimport_Model_Category</category>')) {
-            $errmsg .= " Can't find <category>Bintime_Sinchimport_Model_Category</category> in  <models><catalog></catalog></models>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <category>Bintime_Sinchimport_Model_Category</category> in  <models><catalog></catalog></models>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
 
         if (!strstr($config_file, '<product_compare_list>Bintime_Sinchimport_Block_List</product_compare_list>')) {
-            $errmsg .= " Can't find <product_compare_list>Bintime_Sinchimport_Block_List</product_compare_list> in  <blocks><catalog></catalog></blocks>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <product_compare_list>Bintime_Sinchimport_Block_List</product_compare_list> in  <blocks><catalog></catalog></blocks>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
 
         if (!strstr($config_file, '<product_view_media>Bintime_Sinchimport_Block_Product_View_Media</product_view_media>')) {
-            $errmsg .= " Can't find <product_view_media>Bintime_Sinchimport_Block_Product_View_Media</product_view_media> in  <blocks><catalog></catalog></blocks>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <product_view_media>Bintime_Sinchimport_Block_Product_View_Media</product_view_media> in  <blocks><catalog></catalog></blocks>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
 
         if (!strstr($config_file, '<product>Bintime_Sinchimport_Model_Product</product>')) {
-            $errmsg .= " Can't find <product>Bintime_Sinchimport_Model_Product</product> in  <models><catalog></catalog></models>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <product>Bintime_Sinchimport_Model_Product</product> in  <models><catalog></catalog></models>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
 
         if (!strstr($config_file, '<layer_filter_price>Bintime_Sinchimport_Model_Layer_Filter_Price</layer_filter_price>')) {
-            $errmsg .= " Can't find <layer_filter_price>Bintime_Sinchimport_Model_Layer_Filter_Price</layer_filter_price> in  <models><catalog></catalog><models>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <layer_filter_price>Bintime_Sinchimport_Model_Layer_Filter_Price</layer_filter_price> in  <models><catalog></catalog><models>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
 
         if (!strstr($config_file, '<layer_view>Bintime_Sinchimport_Block_Layer_View</layer_view>')) {
-            $errmsg .= " Can't find <layer_view>Bintime_Sinchimport_Block_Layer_View</layer_view> in  <blocks><catalog></catalog></blocks>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <layer_view>Bintime_Sinchimport_Block_Layer_View</layer_view> in  <blocks><catalog></catalog></blocks>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
 
         if (!strstr($config_file, '<layer>Bintime_Sinchimport_Model_Layer</layer>')) {
-            $errmsg .= " Can't find <layer>Bintime_Sinchimport_Model_Layer</layer> in  <models><catalog></catalog><models>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <layer>Bintime_Sinchimport_Model_Layer</layer> in  <models><catalog></catalog><models>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
 
         if (!strstr($config_file, '<layer_filter_price>Bintime_Sinchimport_Model_Resource_Layer_Filter_Price</layer_filter_price>')) {
-            $errmsg .= " Can't find <layer_filter_price>Bintime_Sinchimport_Model_Resource_Layer_Filter_Price</layer_filter_price> in  <models><catalog_resource_eav_mysql4></catalog_resource_eav_mysql4></models>"; // ." ".$value." ".$CheckMeasure
-            $fixmsg = $FixMessage;//.$CheckValue." ".$CheckMeasure
+            $errmsg .= " Can't find <layer_filter_price>Bintime_Sinchimport_Model_Resource_Layer_Filter_Price</layer_filter_price> in  <models><catalog_resource_eav_mysql4></catalog_resource_eav_mysql4></models>";
+            $fixmsg = $FixMessage;
             $status = 'error';
         }
-
 
         if ($status == 'OK') {
             $errmsg = 'none';
@@ -10165,20 +9301,8 @@ public function checkConflictsWithInstalledModules()
         );
     }
 
-    #################################################################################################
-
     public function getSinchDistribotorsTableHtml($entity_id = null)
     {
-        /*/ Load the collection
-         $collection = getResourceModel('sales/order_grid_collection');
-
-         // Add custom data
-         $collection->addToAll('example', 'This is a test');
-
-         // Set the collection
-         $this->setCollection($collection);
-//         return parent::_prepareCollection();
-*/
         if (!$entity_id) {
             $entity_id = Mage::registry('current_product')->getId();
         }
@@ -10220,13 +9344,10 @@ public function checkConflictsWithInstalledModules()
         return $distributors_table;
     }
 
-    #################################################################################################
-
     private function getDistributorStockPriceByProductid($entity_id)
     {
         $store_product_id = $this->getStoreProductIdByEntity($entity_id);
         if (!$store_product_id) {
-            //      echo "AAAAAAA"; exit;
             return;
         }
         $q = "SELECT
@@ -10247,20 +9368,18 @@ public function checkConflictsWithInstalledModules()
             $offers[] = $row;
         }
         return $offers;
-
     }
 
-    protected function _checkCategoryBackupExist($catalog_category_entity_backup) {
+    protected function _checkDataExist($table)
+    {
         $query = $this->db_do("
             SELECT *
-            FROM $catalog_category_entity_backup
+            FROM $table
         ");
-        while ($row = mysqli_fetch_array($query))
-        {
+        while ($row = mysqli_fetch_array($query)) {
             return true;
         }
 
         return false;
     }
-
-} // class Bintime_Sinchimport_Model_Sinch extends Mage_Core_Model_Abstract
+}

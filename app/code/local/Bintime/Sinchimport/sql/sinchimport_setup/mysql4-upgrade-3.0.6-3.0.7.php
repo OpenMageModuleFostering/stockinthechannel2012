@@ -1,7 +1,23 @@
-DROP PROCEDURE IF EXISTS `filter_sinch_products_s`;
-delimiter =/=
+<?php
+$installer = $this;
 
-CREATE PROCEDURE `filter_sinch_products_s`(
+$config = $installer->getConnection()->getConfig();
+$cnx = mysql_connect($config['host'], $config['username'], $config['password']);
+if (!$cnx) {
+    throw new Exception('Failed to connect to database.');
+}
+
+if (!mysql_select_db($config['dbname'])) {
+    throw new Exception('Failed to select a database.');
+}
+
+$installer->startSetup();
+
+// create a new procedure
+$installer->run("DROP PROCEDURE IF EXISTS ".$installer->getTable('filter_sinch_products_s'));
+
+$query = "
+CREATE PROCEDURE " . $installer->getTable('filter_sinch_products_s') . "(
     IN arg_table INT,
     IN arg_category_id INT,
     IN arg_image INT,
@@ -206,6 +222,14 @@ BEGIN
     PREPARE myquery FROM @query;
     EXECUTE myquery;
     DROP PREPARE myquery;
-END=/=
+END
+";
 
-delimiter ;
+if (!mysql_query($query, $cnx)) {
+    throw new Exception("Failed to create stored procedure".$query);
+}
+
+
+mysql_close($cnx);
+
+$installer->endSetup();

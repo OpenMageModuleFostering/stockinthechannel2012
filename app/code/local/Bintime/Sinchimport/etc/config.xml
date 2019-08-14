@@ -4,36 +4,36 @@
 
     <modules>
         <Bintime_Sinchimport>
-            <version>3.0.6</version>
+            <version>3.0.8</version>
             <depends>
-            <!-- no dependencies -->
+                <!-- no dependencies -->
             </depends>
         </Bintime_Sinchimport>
     </modules>
-    
+
     <global>
-       <helpers>
-                <sinchimport>
-                      <class>Bintime_Sinchimport_Helper</class>
-                </sinchimport>
-                <catalog>
-                      <rewrite>
-                            <image>Bintime_Sinchimport_Helper_Image</image>
-                      </rewrite>
-                </catalog>
+        <helpers>
+            <sinchimport>
+                <class>Bintime_Sinchimport_Helper</class>
+            </sinchimport>
+            <catalog>
+                <rewrite>
+                    <image>Bintime_Sinchimport_Helper_Image</image>
+                </rewrite>
+            </catalog>
 
         </helpers>
         <models>
-                <catalog>
-                     <rewrite>
-	                    <product_image>Bintime_Sinchimport_Model_Image</product_image>
-                     </rewrite>
-                </catalog>
-                <catalog>
-                    <rewrite>
-                        <category>Bintime_Sinchimport_Model_Category</category>
-                    </rewrite>
-                </catalog>
+            <catalog>
+                <rewrite>
+                    <product_image>Bintime_Sinchimport_Model_Image</product_image>
+                </rewrite>
+            </catalog>
+            <catalog>
+                <rewrite>
+                    <category>Bintime_Sinchimport_Model_Category</category>
+                </rewrite>
+            </catalog>
         </models>
         <models>
             <sinchimport>
@@ -68,17 +68,21 @@
         </models>
 
         <resources>
-        	<sinchimport_write>
-				<connection><use>core_write</use></connection>
-    		</sinchimport_write>
-	    	<sinchimport_read>
-				<connection><use>core_read</use></connection>
+            <sinchimport_write>
+                <connection>
+                    <use>core_write</use>
+                </connection>
+            </sinchimport_write>
+            <sinchimport_read>
+                <connection>
+                    <use>core_read</use>
+                </connection>
             </sinchimport_read>
 
             <sinchimport_setup>
                 <setup>
-                   <module>Bintime_Sinchimport</module>
-                   <class>Bintime_Sinchimport_Model_Resource_Mysql4_Setup</class>
+                    <module>Bintime_Sinchimport</module>
+                    <class>Bintime_Sinchimport_Model_Resource_Mysql4_Setup</class>
                 </setup>
                 <connection>
                     <use>core_setup</use>
@@ -86,20 +90,20 @@
             </sinchimport_setup>
 
         </resources>
-<!--        <routers>
-                <catalog>
-                      <rewrite>
-                            <product>
-                                       <to>Bintime_Sinchimport/product</to>
-                                        <override_actions>false</override_actions>
-                                    <actions>
-                                       <view><to>Bintime_Sinchimport/product/view</to></view>
-                                    </actions>
-                            </product>
-                      </rewrite>
-               </catalog>
-        </routers>
--->
+        <!--        <routers>
+                        <catalog>
+                              <rewrite>
+                                    <product>
+                                               <to>Bintime_Sinchimport/product</to>
+                                                <override_actions>false</override_actions>
+                                            <actions>
+                                               <view><to>Bintime_Sinchimport/product/view</to></view>
+                                            </actions>
+                                    </product>
+                              </rewrite>
+                       </catalog>
+                </routers>
+        -->
         <blocks>
             <catalog>
                 <rewrite>
@@ -120,7 +124,7 @@
                 <class>Bintime_Sinchimport_Model</class>
                 <resourceModel>sinchimport_mysql4</resourceModel>
             </sinchimport>
-            
+
             <catalog_resource_eav_mysql4>
                 <rewrite>
                     <layer_filter_price>Bintime_Sinchimport_Model_Resource_Layer_Filter_Price</layer_filter_price>
@@ -129,18 +133,18 @@
 
             <sinchimport_mysql4>
                 <class>Bintime_Sinchimport_Model_Resource_Mysql4</class>
-<!--                <entities>
-                    <ice_feature><table>icecat_category_feature</table></ice_feature>
-                </entities>
--->
+                <!--                <entities>
+                                    <ice_feature><table>icecat_category_feature</table></ice_feature>
+                                </entities>
+                -->
             </sinchimport_mysql4>
 
-<!--            <sinchimport>
-                <class>Bintime_Icelayered_Block</class>
-            </sinchimport>
--->
+            <!--            <sinchimport>
+                            <class>Bintime_Icelayered_Block</class>
+                        </sinchimport>
+            -->
 
-	</models>
+        </models>
         <events>
             <sinchimport_model_import_after>
                 <observers>
@@ -153,39 +157,39 @@
         </events>
 
     </global>
-    
-    <frontend>		
-            <routers>
-                <sinchimport>
-                    <use>standard</use>
-                    <args>
-                        <module>Bintime_Sinchimport</module>
-                        <frontName>sinchimport</frontName>
-                    </args>
-                </sinchimport>
-            </routers>
-            <layout>
-                <updates>
-                    <sinchimport>
-                         <file>sinchimport.xml</file>
-                     </sinchimport>
-                </updates>
-            </layout>
-	
-     </frontend>
-     <admin>
-         <routers>
-             <sinchimport>
-                 <use>admin</use>
-                 <args>
-                     <module>Bintime_Sinchimport</module>
-                     <frontName>sinchimport</frontName>
-                 </args>
-             </sinchimport>
-         </routers>
-     </admin>
 
-     <adminhtml>
+    <frontend>
+        <routers>
+            <sinchimport>
+                <use>standard</use>
+                <args>
+                    <module>Bintime_Sinchimport</module>
+                    <frontName>sinchimport</frontName>
+                </args>
+            </sinchimport>
+        </routers>
+        <layout>
+            <updates>
+                <sinchimport>
+                    <file>sinchimport.xml</file>
+                </sinchimport>
+            </updates>
+        </layout>
+
+    </frontend>
+    <admin>
+        <routers>
+            <sinchimport>
+                <use>admin</use>
+                <args>
+                    <module>Bintime_Sinchimport</module>
+                    <frontName>sinchimport</frontName>
+                </args>
+            </sinchimport>
+        </routers>
+    </admin>
+
+    <adminhtml>
         <menu>
             <sinch translate="title">
                 <title>Stock in the Channel</title>
@@ -200,68 +204,75 @@
             </sinch>
         </menu>
 
-         <acl>
-             <resources>
-                 <admin>
-                     <children>
-                         <system>
-                             <children>
-                                 <config>
-                                     <children>
-                                         <sinchimport_root translate="title" module="customer">
-                                             <title> Stock In The Channel model powered by Bintime company</title>
-                                             <sort_order>250</sort_order>
-                                         </sinchimport_root>
-                                     </children>
-                                 </config>
-                             </children>
-                         </system>
-                     </children>
-                 </admin>
-             </resources>
-         </acl>
-         <events></events>
-         <translate>
-             <modules>
-                 <mage_adminhtml>
-                     <files>
-                         <sinchimport>Bintime_Sinchimport.csv</sinchimport>
-                     </files>
-                 </mage_adminhtml>
-             </modules>
-         </translate>
+        <acl>
+            <resources>
+                <admin>
+                    <children>
+                        <system>
+                            <children>
+                                <config>
+                                    <children>
+                                        <sinchimport_root translate="title" module="customer">
+                                            <title>Stock In The Channel model powered by Bintime company</title>
+                                            <sort_order>250</sort_order>
+                                        </sinchimport_root>
+                                    </children>
+                                </config>
+                            </children>
+                        </system>
+                    </children>
+                </admin>
+            </resources>
+        </acl>
+        <events></events>
+        <translate>
+            <modules>
+                <mage_adminhtml>
+                    <files>
+                        <sinchimport>Bintime_Sinchimport.csv</sinchimport>
+                    </files>
+                </mage_adminhtml>
+            </modules>
+        </translate>
 
-         <layout>
-             <updates>
-                 <sinchimport>
-                     <file>sinchimport.xml</file>
-                 </sinchimport>
-             </updates>
-         </layout>
+        <layout>
+            <updates>
+                <sinchimport>
+                    <file>sinchimport.xml</file>
+                </sinchimport>
+            </updates>
+        </layout>
 
-     </adminhtml>
-	
-     <default>
-	<sinchimport_root>
-		<sinch_cron>
-	  		<sinch_cron_time>8 am</sinch_cron_time>
-		</sinch_cron>
-	</sinchimport_root>
-     </default>		
-     <crontab>
-         <jobs>
-             <fullsinchimport>
-                 <schedule><cron_expr>0 23 * * 6</cron_expr></schedule>
-                 <run><model>sinchimport/sinch::cron_start_full_import</model></run>
-	
-             </fullsinchimport>
-	     <stockpricesinchimport>
+    </adminhtml>
 
-                 <schedule><cron_expr>0 8 * * *</cron_expr></schedule>
-                 <run><model>sinchimport/sinch::cron_start_stock_price_import</model></run>
-	
-	     </stockpricesinchimport>	
-         </jobs>
-     </crontab>
+    <default>
+        <sinchimport_root>
+            <sinch_cron>
+                <sinch_cron_time>8 am</sinch_cron_time>
+            </sinch_cron>
+        </sinchimport_root>
+    </default>
+
+    <crontab>
+        <jobs>
+            <fullsinchimport>
+                <schedule>
+                    <cron_expr>0 1 * * *</cron_expr>
+                </schedule>
+                <run>
+                    <model>sinchimport/sinch::cron_start_full_import</model>
+                </run>
+            </fullsinchimport>
+
+            <stockpricesinchimport>
+                <schedule>
+                    <cron_expr>0 2 * * *</cron_expr>
+                </schedule>
+                <run>
+                    <model>sinchimport/sinch::cron_start_stock_price_import</model>
+                </run>
+            </stockpricesinchimport>
+        </jobs>
+    </crontab>
+
 </config>
-
