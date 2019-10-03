@@ -1,7 +1,7 @@
 {
-    "name": "OpenMageModuleFostering\/stockinthechannel2012",
+    "name": "openmage-module-fostering\/stockinthechannel2012",
     "type": "magento-module",
-    "license": "OSL-v3",
+    "license": "OSL-3.0",
     "homepage": "",
     "description": "Import Plugin for the Stock in the Channel Magento Data Feed",
     "authors": [
