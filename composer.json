@@ -1,16 +1,19 @@
 {
-    "name": "OpenMageModuleFostering/stockinthechannel2012",
+    "name": "OpenMageModuleFostering\/stockinthechannel2012",
     "type": "magento-module",
     "license": "OSL-v3",
     "homepage": "",
     "description": "Import Plugin for the Stock in the Channel Magento Data Feed",
     "authors": [
-    {
-        "name": "stockinchannel",
-        "email": "marketing@stockinthechannel.com"
-    }
-],
+        {
+            "name": "stockinchannel",
+            "email": "marketing@stockinthechannel.com"
+        }
+    ],
     "suggest": {
-        "magento-hackathon/magento-composer-installer": "*"
-    }
+        "magento-hackathon\/magento-composer-installer": "*"
+    },
+    "keywords": [
+        "openmage-module"
+    ]
 }
